@@ -377,3 +377,22 @@ h1 {
   background: #28a745;
   color: white;
 }
+
+/* Admin Actions */
+.admin-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.interviewer-email {
+  font-size: 11px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.modal-content {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
