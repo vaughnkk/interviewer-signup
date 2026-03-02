@@ -139,7 +139,7 @@
         </div>
         <div class="controls-right">
           <button id="addPodBtn" class="btn btn-primary" style="display: none;">
-            <span class="icon">+</span> Add New Pod
+            <span class="icon">⚙</span> ADD/EDIT PODS
           </button>
         </div>
       </div>
@@ -181,15 +181,40 @@
     </div>
   </div>
 
+  <!-- Pod Management View for Admins -->
+  <div id="podManagementView" style="display: none;">
+    <div class="management-container">
+      <div class="management-header">
+        <div class="header-left">
+          <h1>Pod Management</h1>
+          <p class="management-subtitle">View, add, and edit all interview pods</p>
+        </div>
+        <div class="management-actions">
+          <button class="btn" onclick="closePodManagement()">← Back to Pods</button>
+          <button class="btn btn-primary" onclick="showBulkAddMode()">+ Bulk Add Pods</button>
+        </div>
+      </div>
+      
+      <div class="management-content">
+        <div id="managementPodsContainer"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Spreadsheet View for Bulk Pod Creation -->
   <div id="spreadsheetView" style="display: none;">
     <div class="spreadsheet-container">
       <div class="spreadsheet-header">
         <div class="header-left">
-          <h1>Add Multiple Pods</h1>
-          <p class="spreadsheet-subtitle">Bulk pod creation for AIS interviews</p>
+          <h1>Bulk Add Pods</h1>
+          <p class="spreadsheet-subtitle">Add multiple pods at once</p>
         </div>
         <div class="spreadsheet-actions">
+          <button class="btn" onclick="closeSpreadsheet()">← Back to Management</button>
+          <button class="btn" onclick="addMoreRows()">+ Add 5 More Rows</button>
+          <button id="saveBulkBtn" class="btn btn-primary" onclick="saveBulkPods()">Save All Pods</button>
+        </div>
+      </div>
           <button class="btn" onclick="closeSpreadsheet()">← Back to Pods</button>
           <button class="btn" onclick="addMoreRows()">+ Add 5 More Rows</button>
           <button id="saveBulkBtn" class="btn btn-primary" onclick="saveBulkPods()">Save All Pods</button>

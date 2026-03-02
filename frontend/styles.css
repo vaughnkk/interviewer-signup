@@ -807,3 +807,217 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Pod Management View */
+.management-container {
+  width: 100%;
+  min-height: 100vh;
+  background: var(--bg-light);
+}
+
+.management-header {
+  padding: 24px 32px;
+  border-bottom: 2px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-white);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.management-header h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.management-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.management-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.management-content {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.management-pod-card {
+  background: var(--bg-white);
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.management-pod-header {
+  background: var(--bg-light);
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pod-title-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pod-title-section h3 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.pod-badges {
+  display: flex;
+  gap: 8px;
+}
+
+.pod-actions-section {
+  display: flex;
+  gap: 10px;
+}
+
+.management-pod-info {
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--border-color);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.info-row {
+  display: flex;
+  gap: 8px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 80px;
+}
+
+.info-value {
+  color: var(--text-secondary);
+}
+
+.management-slots {
+  padding: 20px 24px;
+}
+
+.management-slots h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.management-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.management-slot {
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--bg-white);
+}
+
+.management-slot.filled {
+  background: #E8F5E9;
+  border-color: var(--success-color);
+}
+
+.management-slot.open {
+  background: #FFF8E1;
+  border-color: var(--warning-color);
+}
+
+.slot-number {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.slot-requirements {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.slot-requirements div {
+  margin-bottom: 4px;
+}
+
+.slot-requirements strong {
+  color: var(--text-primary);
+}
+
+.slot-filled-info {
+  padding-top: 12px;
+  border-top: 2px solid var(--success-color);
+}
+
+.filled-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: var(--success-color);
+  color: var(--bg-white);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.interviewer-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.interviewer-email {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.slot-open-info {
+  padding-top: 12px;
+  border-top: 2px solid var(--warning-color);
+  text-align: center;
+}
+
+.open-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: var(--warning-color);
+  color: var(--text-primary);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.remove-interviewer-btn {
+  margin-top: 8px;
+  width: 100%;
+}

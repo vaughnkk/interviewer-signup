@@ -120,10 +120,193 @@ function toggleAllPodsView() {
 }
 
 function showAddPodModal() {
-  // Hide main app and show spreadsheet view
+  // Hide main app and show pod management view
   document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('podManagementView').style.display = 'block';
+  loadManagementPods();
+}
+
+function closePodManagement() {
+  document.getElementById('podManagementView').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  loadPods();
+}
+
+function showBulkAddMode() {
+  document.getElementById('podManagementView').style.display = 'none';
   document.getElementById('spreadsheetView').style.display = 'block';
   initializeSpreadsheet();
+}
+
+async function loadManagementPods() {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/admin/pods`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (response.status === 401) {
+      handleLogout();
+      return;
+    }
+    
+    const pods = await response.json();
+    renderManagementPods(pods);
+  } catch (error) {
+    console.error('Error loading management pods:', error);
+    alert('Failed to load pods');
+  }
+}
+
+function renderManagementPods(pods) {
+  const container = document.getElementById('managementPodsContainer');
+  
+  if (pods.length === 0) {
+    container.innerHTML = '<div class="no-slots"><p>No pods created yet.</p><p>Click "Bulk Add Pods" to get started.</p></div>';
+    return;
+  }
+  
+  // Sort by date
+  pods.sort((a, b) => {
+    const dateA = parseDate(a.interview_date);
+    const dateB = parseDate(b.interview_date);
+    return dateA - dateB;
+  });
+  
+  container.innerHTML = pods.map(pod => {
+    const locationCode = pod.location.split('-')[0].split(' ')[0].toUpperCase();
+    
+    return `
+      <div class="management-pod-card">
+        <div class="management-pod-header">
+          <div class="pod-title-section">
+            <h3>${locationCode}-${pod.pod_number}</h3>
+            <div class="pod-badges">
+              <span class="job-type-badge">${pod.job_type}</span>
+              <span class="level-badge ${pod.level.toLowerCase()}">${pod.level}</span>
+            </div>
+          </div>
+          <div class="pod-actions-section">
+            <button class="btn btn-small edit-pod-btn" data-pod='${JSON.stringify(pod).replace(/'/g, "&apos;")}'>
+              Edit Pod Info
+            </button>
+            <button class="btn btn-small btn-danger delete-pod-btn" data-pod-id="${pod.id}">
+              Delete Pod
+            </button>
+          </div>
+        </div>
+        
+        <div class="management-pod-info">
+          <div class="info-row">
+            <span class="info-label">Location:</span>
+            <span class="info-value">${pod.location}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Date:</span>
+            <span class="info-value">${pod.interview_date}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Time:</span>
+            <span class="info-value">${pod.time_slot} ${pod.time_zone}</span>
+          </div>
+          ${pod.business_poc ? `
+            <div class="info-row">
+              <span class="info-label">POC:</span>
+              <span class="info-value">${pod.business_poc}</span>
+            </div>
+          ` : ''}
+        </div>
+        
+        <div class="management-slots">
+          <h4>Interview Slots (${pod.slots.filter(s => s.status === 'filled').length}/${pod.slots.length} filled)</h4>
+          <div class="management-slots-grid">
+            ${pod.slots.map(slot => `
+              <div class="management-slot ${slot.status}">
+                <div class="slot-number">Slot ${slot.slot_number}</div>
+                <div class="slot-requirements">
+                  <div><strong>Focus:</strong> ${slot.focus_area}</div>
+                  <div><strong>LP:</strong> ${slot.leadership_principle}</div>
+                  <div><strong>Required:</strong> ${slot.required_job_family} (${slot.required_level})</div>
+                </div>
+                ${slot.status === 'filled' ? `
+                  <div class="slot-filled-info">
+                    <div class="filled-badge">✓ FILLED</div>
+                    <div class="interviewer-name">${slot.interviewer_name}</div>
+                    <div class="interviewer-email">${slot.interviewer_alias}</div>
+                    <button class="btn btn-small btn-danger remove-interviewer-btn" 
+                            data-slot-id="${slot.id}">
+                      Remove Interviewer
+                    </button>
+                  </div>
+                ` : `
+                  <div class="slot-open-info">
+                    <span class="open-badge">OPEN</span>
+                  </div>
+                `}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  // Attach event listeners
+  attachManagementEventListeners();
+}
+
+function attachManagementEventListeners() {
+  // Edit pod buttons
+  document.querySelectorAll('.edit-pod-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const pod = JSON.parse(this.getAttribute('data-pod').replace(/&apos;/g, "'"));
+      showEditPodModal(pod);
+    });
+  });
+  
+  // Delete pod buttons
+  document.querySelectorAll('.delete-pod-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const podId = this.getAttribute('data-pod-id');
+      if (confirm('Are you sure you want to delete this pod? This will remove all slots and cannot be undone.')) {
+        deletePod(podId);
+      }
+    });
+  });
+  
+  // Remove interviewer buttons
+  document.querySelectorAll('.remove-interviewer-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const slotId = this.getAttribute('data-slot-id');
+      if (confirm('Remove this interviewer from the slot?')) {
+        removeInterviewer(slotId);
+      }
+    });
+  });
+}
+
+async function removeInterviewer(slotId) {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/admin/slots/${slotId}/remove`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (response.ok) {
+      alert('Interviewer removed successfully');
+      loadManagementPods();
+    } else {
+      alert('Failed to remove interviewer');
+    }
+  } catch (error) {
+    console.error('Error removing interviewer:', error);
+    alert('Failed to remove interviewer');
+  }
 }
 
 function showEditPodModal(pod) {
@@ -142,7 +325,8 @@ function showEditPodModal(pod) {
 
 function closeSpreadsheet() {
   document.getElementById('spreadsheetView').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('podManagementView').style.display = 'block';
+  loadManagementPods();
 }
 
 let spreadsheetRows = [];
@@ -289,7 +473,6 @@ async function saveBulkPods() {
   
   if (successCount > 0) {
     closeSpreadsheet();
-    loadPods();
   }
 }
 
@@ -765,7 +948,13 @@ async function handleEditPod(e) {
     if (response.ok) {
       alert('Pod updated successfully!');
       document.getElementById('editPodModal').style.display = 'none';
-      loadPods();
+      
+      // Check if we're in management view or main view
+      if (document.getElementById('podManagementView').style.display === 'block') {
+        loadManagementPods();
+      } else {
+        loadPods();
+      }
     } else {
       const data = await response.json();
       alert('Failed to update pod: ' + data.error);
@@ -788,7 +977,7 @@ async function deletePod(podId) {
     
     if (response.ok) {
       alert('Pod deleted successfully!');
-      loadPods();
+      loadManagementPods();
     } else {
       alert('Failed to delete pod');
     }
