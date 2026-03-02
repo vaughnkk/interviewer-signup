@@ -449,8 +449,26 @@ app.put('/api/admin/pods/:id', verifyToken, (req, res) => {
   );
 });
 
+// Admin: Remove interviewer from slot
+app.post('/api/admin/slots/:id/remove', verifyToken, (req, res) => {
+  const user = req.user;
+  
+  if (!user.is_admin) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  
+  const { id } = req.params;
+  
+  db.run(
+    `UPDATE interview_slots SET interviewer_name = NULL, interviewer_alias = NULL, status = 'open' WHERE id = ?`,
+    [id],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: 'Interviewer removed successfully' });
+    }
+  );
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-
