@@ -3,14 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Interview Pod Sign-up</title>
+  <title>AIS Interviewer POD Sign Up</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <!-- Authentication Screen -->
   <div id="authScreen" class="auth-screen">
     <div class="auth-container">
-      <h1>Interview Pod Sign-up</h1>
+      <div class="auth-logo">
+        <h1>AIS Interviewer POD Sign Up</h1>
+        <p class="auth-subtitle">Amazon Infrastructure Services</p>
+      </div>
       
       <!-- Login Form -->
       <div id="loginForm" class="auth-form">
@@ -110,22 +113,35 @@
 
   <!-- Main Application -->
   <div id="mainApp" style="display: none;">
-    <div class="container">
-      <div class="header">
-        <h1>Interview Pod Sign-up</h1>
-        <div class="user-section">
+    <div class="app-header">
+      <div class="header-content">
+        <div class="header-left">
+          <h1 class="app-title">AIS Interviewer POD Sign Up</h1>
+          <p class="app-subtitle">Amazon Infrastructure Services</p>
+        </div>
+        <div class="header-right">
           <div class="user-details">
             <div class="user-name" id="userName"></div>
             <div class="user-info" id="userInfo"></div>
           </div>
-          <button id="logoutBtn" class="btn">Logout</button>
+          <button id="logoutBtn" class="btn btn-logout">Logout</button>
         </div>
       </div>
-      
-      <div class="controls">
-        <button id="refreshBtn" class="btn">Refresh</button>
-        <button id="addPodBtn" class="btn btn-primary" style="display: none;">Add New Pod</button>
-        <button id="viewAllBtn" class="btn" style="display: none;">View All Pods</button>
+    </div>
+    
+    <div class="container">
+      <div class="controls-bar">
+        <div class="controls-left">
+          <button id="refreshBtn" class="btn btn-icon">
+            <span class="icon">↻</span> Refresh
+          </button>
+          <button id="viewAllBtn" class="btn" style="display: none;">View All Pods</button>
+        </div>
+        <div class="controls-right">
+          <button id="addPodBtn" class="btn btn-primary" style="display: none;">
+            <span class="icon">+</span> Add New Pod
+          </button>
+        </div>
       </div>
 
       <div class="filters">
@@ -169,7 +185,10 @@
   <div id="spreadsheetView" style="display: none;">
     <div class="spreadsheet-container">
       <div class="spreadsheet-header">
-        <h1>Add Multiple Pods</h1>
+        <div class="header-left">
+          <h1>Add Multiple Pods</h1>
+          <p class="spreadsheet-subtitle">Bulk pod creation for AIS interviews</p>
+        </div>
         <div class="spreadsheet-actions">
           <button class="btn" onclick="closeSpreadsheet()">← Back to Pods</button>
           <button class="btn" onclick="addMoreRows()">+ Add 5 More Rows</button>

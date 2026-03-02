@@ -566,8 +566,8 @@ function renderSlot(slot, showAll = false) {
   const isFilled = slot.status === 'filled';
   const cardClass = isFilled ? 'slot-card filled' : 'slot-card open';
   
-  // In "View All Pods" mode, show all slots (filled and open)
-  // In regular view, only show open slots that user is eligible for
+  // Check if current user is eligible for this slot
+  const isEligible = checkSlotEligibility(slot);
   
   return `
     <div class="${cardClass}">
@@ -582,13 +582,65 @@ function renderSlot(slot, showAll = false) {
           <div>✓ ${slot.interviewer_name}</div>
           <div class="interviewer-email">${slot.interviewer_alias}</div>
         </div>
-      ` : `
+      ` : isEligible ? `
         <div class="slot-actions">
           <button class="btn btn-small btn-primary signup-btn" data-slot-id="${slot.id}">Sign Up</button>
+        </div>
+      ` : `
+        <div class="slot-ineligible">
+          <span>Not eligible for this slot</span>
         </div>
       `}
     </div>
   `;
+}
+
+function checkSlotEligibility(slot) {
+  // Cluster Leaders can sign up for any slot
+  if (currentUser.job_family === 'Cluster Leader') {
+    return true;
+  }
+  
+  const slotLevel = slot.required_level;
+  const userLevel = currentUser.level;
+  const requiredFamily = slot.required_job_family;
+  
+  // Check level requirements
+  if (slotLevel.includes('L4+')) {
+    if (!['L4', 'L5', 'L6', 'L7', 'L8'].includes(userLevel)) {
+      return false;
+    }
+  } else if (slotLevel.includes('Manager')) {
+    if (!currentUser.is_manager) {
+      return false;
+    }
+  }
+  
+  // Check job family requirements
+  if (requiredFamily === 'Any') {
+    return true;
+  }
+  
+  // Check if slot requires a manager from specific job family
+  if (requiredFamily.includes('Manager')) {
+    const familyPart = requiredFamily.replace(' Manager', '').replace('/Chief Engineer', '');
+    
+    if (!currentUser.is_manager) {
+      return false;
+    }
+    if (!familyPart.includes(currentUser.job_family)) {
+      return false;
+    }
+    
+    return true;
+  }
+  
+  // For non-manager slots, check if user's job family matches
+  if (requiredFamily === currentUser.job_family) {
+    return true;
+  }
+  
+  return false;
 }
 
 function attachSlotEventListeners() {
