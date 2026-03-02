@@ -134,4 +134,196 @@
 
   <script src="app.js"></script>
 </body>
+  <div class="container">
+    <h1>Interview Pod Sign-up Sheet</h1>
+    
+    <div class="controls">
+      <button id="refreshBtn" class="btn">Refresh</button>
+      <button id="addPodBtn" class="btn btn-primary">Add New Pod</button>
+    </div>
+
+    <div id="podsContainer"></div>
+  </div>
+
+  <!-- Modal for signing up -->
+  <div id="signupModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Sign Up for Interview Slot</h2>
+      <form id="signupForm">
+        <input type="hidden" id="slotId">
+        <div class="form-group">
+          <label for="interviewerName">Your Name:</label>
+          <input type="text" id="interviewerName" required>
+        </div>
+        <div class="form-group">
+          <label for="interviewerAlias">Your Alias:</label>
+          <input type="text" id="interviewerAlias" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Sign Up</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal for adding pod -->
+  <div id="addPodModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Add New Pod</h2>
+      <form id="addPodForm">
+        <div class="form-group">
+          <label for="podNumber">Pod Number:</label>
+          <input type="number" id="podNumber" required>
+        </div>
+        <div class="form-group">
+          <label for="level">Level:</label>
+          <select id="level" required>
+            <option value="L3">L3 (3 interviewers)</option>
+            <option value="L4">L4 (4 interviewers)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="location">Location:</label>
+          <input type="text" id="location" required>
+        </div>
+        <div class="form-group">
+          <label for="interviewDate">Interview Date:</label>
+          <input type="text" id="interviewDate" placeholder="MM/DD/YYYY" required>
+        </div>
+        <div class="form-group">
+          <label for="timeSlot">Time Slot:</label>
+          <input type="text" id="timeSlot" placeholder="e.g., 1pm-4:30pm" required>
+        </div>
+        <div class="form-group">
+          <label for="timeZone">Time Zone:</label>
+          <select id="timeZone" required>
+            <option value="PT">PT</option>
+            <option value="ET">ET</option>
+            <option value="CT">CT</option>
+            <option value="MT">MT</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="businessPoc">Business POC:</label>
+          <input type="text" id="businessPoc">
+        </div>
+        <button type="submit" class="btn btn-primary">Create Pod</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal for adding pod -->
+  <div id="addPodModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Add New Pod</h2>
+      <form id="addPodForm">
+        <div class="form-group">
+          <label for="podNumber">Pod Number:</label>
+          <input type="number" id="podNumber" required>
+        </div>
+        <div class="form-group">
+          <label for="jobType">Job Type:</label>
+          <select id="jobType" required>
+            <option value="DCEO">DCEO</option>
+            <option value="DCO">DCO</option>
+            <option value="ID">ID</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="level">Level:</label>
+          <select id="level" required>
+            <option value="L3">L3 (3 interviewers)</option>
+            <option value="L4">L4 (4 interviewers)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="location">Location:</label>
+          <input type="text" id="location" placeholder="e.g., IAD, PDX, RNO" required>
+        </div>
+        <div class="form-group">
+          <label for="interviewDate">Interview Date:</label>
+          <input type="text" id="interviewDate" placeholder="MM/DD/YYYY" required>
+        </div>
+        <div class="form-group">
+          <label for="timeSlot">Time Slot:</label>
+          <input type="text" id="timeSlot" placeholder="e.g., 1pm-4:30pm" required>
+        </div>
+        <div class="form-group">
+          <label for="timeZone">Time Zone:</label>
+          <select id="timeZone" required>
+            <option value="PT">PT</option>
+            <option value="ET">ET</option>
+            <option value="CT">CT</option>
+            <option value="MT">MT</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="businessPoc">Business POC:</label>
+          <input type="text" id="businessPoc">
+        </div>
+        <button type="submit" class="btn btn-primary">Create Pod</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal for editing pod -->
+  <div id="editPodModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Edit Pod</h2>
+      <form id="editPodForm">
+        <input type="hidden" id="editPodId">
+        <div class="form-group">
+          <label for="editPodNumber">Pod Number:</label>
+          <input type="number" id="editPodNumber" required>
+        </div>
+        <div class="form-group">
+          <label for="editJobType">Job Type:</label>
+          <select id="editJobType" required>
+            <option value="DCEO">DCEO</option>
+            <option value="DCO">DCO</option>
+            <option value="ID">ID</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="editLevel">Level:</label>
+          <select id="editLevel" required>
+            <option value="L3">L3 (3 interviewers)</option>
+            <option value="L4">L4 (4 interviewers)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="editLocation">Location:</label>
+          <input type="text" id="editLocation" required>
+        </div>
+        <div class="form-group">
+          <label for="editInterviewDate">Interview Date:</label>
+          <input type="text" id="editInterviewDate" placeholder="MM/DD/YYYY" required>
+        </div>
+        <div class="form-group">
+          <label for="editTimeSlot">Time Slot:</label>
+          <input type="text" id="editTimeSlot" required>
+        </div>
+        <div class="form-group">
+          <label for="editTimeZone">Time Zone:</label>
+          <select id="editTimeZone" required>
+            <option value="PT">PT</option>
+            <option value="ET">ET</option>
+            <option value="CT">CT</option>
+            <option value="MT">MT</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="editBusinessPoc">Business POC:</label>
+          <input type="text" id="editBusinessPoc">
+        </div>
+        <button type="submit" class="btn btn-primary">Update Pod</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
 </html>
+
