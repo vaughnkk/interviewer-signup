@@ -194,6 +194,41 @@ app.get('/api/admin/pods', verifyToken, (req, res) => {
   });
 });
 
+// Everyone: Get ALL pods with all slots (for "View All Pods" feature)
+app.get('/api/all-pods', verifyToken, (req, res) => {
+  const query = `
+    SELECT p.*, 
+           json_group_array(
+             json_object(
+               'id', i.id,
+               'slot_number', i.slot_number,
+               'focus_area', i.focus_area,
+               'leadership_principle', i.leadership_principle,
+               'required_job_family', i.required_job_family,
+               'required_level', i.required_level,
+               'interviewer_name', i.interviewer_name,
+               'interviewer_alias', i.interviewer_alias,
+               'status', i.status
+             )
+           ) as slots
+    FROM pods p
+    LEFT JOIN interview_slots i ON p.id = i.pod_id
+    GROUP BY p.id
+    ORDER BY p.interview_date, p.time_slot
+  `;
+  
+  db.all(query, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    const pods = rows.map(row => ({
+      ...row,
+      slots: JSON.parse(row.slots).filter(s => s.id !== null)
+    }));
+    
+    res.json(pods);
+  });
+});
+
 // Regular users: Get eligible pods only
 app.get('/api/pods', verifyToken, (req, res) => {
   const user = req.user;
@@ -394,3 +429,4 @@ app.put('/api/admin/pods/:id', verifyToken, (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
+
