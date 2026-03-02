@@ -70,8 +70,15 @@ function showMainApp() {
   let badges = [currentUser.job_family, currentUser.level];
   if (currentUser.is_manager) badges.push('Manager');
   if (currentUser.is_bar_raiser) badges.push('Bar Raiser');
+  if (currentUser.is_admin) badges.push('ADMIN');
   
   document.getElementById('userInfo').textContent = `${currentUser.email} | ${badges.join(' | ')}`;
+  
+  // Show admin buttons if user is admin
+  if (currentUser.is_admin) {
+    document.getElementById('addPodBtn').style.display = 'inline-block';
+    document.getElementById('viewAllBtn').style.display = 'inline-block';
+  }
 }
 
 async function handleLogin(e) {
@@ -122,7 +129,12 @@ async function handleRegister(e) {
     });
     
     if (response.ok) {
-      alert('Registration successful! Please login.');
+      const data = await response.json();
+      if (data.is_admin) {
+        alert('Registration successful as ADMIN! You have full access to manage pods. Please login.');
+      } else {
+        alert('Registration successful! Please login.');
+      }
       document.getElementById('showLogin').click();
       document.getElementById('registerFormElement').reset();
     } else {
@@ -247,5 +259,6 @@ async function handleDirectSignup(slotId) {
     alert('Failed to sign up');
   }
 }
+
 
 
