@@ -48,8 +48,10 @@ db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS interviewers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
+    alias TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
+    timezone TEXT NOT NULL,
     job_family TEXT NOT NULL,
     level TEXT NOT NULL,
     is_manager BOOLEAN DEFAULT 0,
@@ -111,7 +113,7 @@ app.get('/', (req, res) => {
 });
 
 app.post('/api/register', (req, res) => {
-  const { name, email, password, job_family, level, is_manager, is_bar_raiser } = req.body;
+  const { name, alias, email, password, timezone, job_family, level, is_manager, is_bar_raiser } = req.body;
   
   // Automatically make Recruiting and Cluster Leader admins
   const is_admin = (job_family === 'Recruiting' || job_family === 'Cluster Leader') ? 1 : 0;
@@ -119,8 +121,8 @@ app.post('/api/register', (req, res) => {
   bcrypt.hash(password, 10, (err, hash) => {
     if (err) return res.status(500).json({ error: err.message });
     
-    db.run(`INSERT INTO interviewers (name, email, password, job_family, level, is_manager, is_bar_raiser, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, email, hash, job_family, level, is_manager ? 1 : 0, is_bar_raiser ? 1 : 0, is_admin],
+    db.run(`INSERT INTO interviewers (name, alias, email, password, timezone, job_family, level, is_manager, is_bar_raiser, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, alias, email, hash, timezone, job_family, level, is_manager ? 1 : 0, is_bar_raiser ? 1 : 0, is_admin],
       function(err) {
         if (err) {
           if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'Email already registered' });
@@ -143,12 +145,12 @@ app.post('/api/login', (req, res) => {
       if (!match) return res.status(401).json({ error: 'Invalid password' });
       
       const token = jwt.sign(
-        { id: user.id, email: user.email, job_family: user.job_family, level: user.level, is_manager: user.is_manager, is_bar_raiser: user.is_bar_raiser, is_admin: user.is_admin },
+        { id: user.id, email: user.email, alias: user.alias, timezone: user.timezone, job_family: user.job_family, level: user.level, is_manager: user.is_manager, is_bar_raiser: user.is_bar_raiser, is_admin: user.is_admin },
         JWT_SECRET,
         { expiresIn: '24h' }
       );
       
-      res.json({ token, user: { id: user.id, name: user.name, email: user.email, job_family: user.job_family, level: user.level, is_manager: user.is_manager, is_bar_raiser: user.is_bar_raiser, is_admin: user.is_admin } });
+      res.json({ token, user: { id: user.id, name: user.name, alias: user.alias, email: user.email, timezone: user.timezone, job_family: user.job_family, level: user.level, is_manager: user.is_manager, is_bar_raiser: user.is_bar_raiser, is_admin: user.is_admin } });
     });
   });
 });
@@ -319,12 +321,47 @@ app.post('/api/slots/:id/signup', verifyToken, (req, res) => {
   db.get('SELECT * FROM interviewers WHERE id = ?', [user.id], (err, interviewer) => {
     if (err) return res.status(500).json({ error: err.message });
     
-    db.run(`UPDATE interview_slots SET interviewer_name = ?, interviewer_alias = ?, status = 'filled' WHERE id = ?`,
-      [interviewer.name, interviewer.email, id],
-      function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Signed up successfully' });
-      });
+    // Get slot and pod information
+    db.get(`
+      SELECT 
+        s.*,
+        p.pod_number, p.job_type, p.level, p.location, 
+        p.interview_date, p.time_slot, p.time_zone, p.business_poc
+      FROM interview_slots s
+      JOIN pods p ON s.pod_id = p.id
+      WHERE s.id = ?
+    `, [id], (err, slotData) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!slotData) return res.status(404).json({ error: 'Slot not found' });
+      
+      db.run(`UPDATE interview_slots SET interviewer_name = ?, interviewer_alias = ?, status = 'filled' WHERE id = ?`,
+        [interviewer.name, interviewer.email, id],
+        function(err) {
+          if (err) return res.status(500).json({ error: err.message });
+          
+          // Return pod and slot details for calendar invite
+          res.json({ 
+            message: 'Signed up successfully',
+            pod: {
+              id: slotData.pod_id,
+              pod_number: slotData.pod_number,
+              job_type: slotData.job_type,
+              level: slotData.level,
+              location: slotData.location,
+              interview_date: slotData.interview_date,
+              time_slot: slotData.time_slot,
+              time_zone: slotData.time_zone,
+              business_poc: slotData.business_poc
+            },
+            slot: {
+              id: slotData.id,
+              slot_number: slotData.slot_number,
+              focus_area: slotData.focus_area,
+              leadership_principle: slotData.leadership_principle
+            }
+          });
+        });
+    });
   });
 });
 
