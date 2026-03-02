@@ -49,6 +49,7 @@ function setupEventListeners() {
   
   document.getElementById('logoutBtn').addEventListener('click', handleLogout);
   document.getElementById('refreshBtn').addEventListener('click', loadPods);
+  document.getElementById('myInterviewsBtn').addEventListener('click', showMyInterviews);
   
   // Filter listeners
   document.getElementById('filterJobType').addEventListener('change', handleFilterChange);
@@ -171,6 +172,7 @@ async function loadPodsIntoSpreadsheet() {
       interview_date: pod.interview_date,
       time_slot: pod.time_slot,
       time_zone: pod.time_zone,
+      debrief_date: pod.debrief_date || '',
       debrief_time: pod.debrief_time || '',
       business_poc: pod.business_poc || '',
       isExisting: true // Flag to know this is an existing pod
@@ -230,6 +232,7 @@ function addSpreadsheetRow() {
     interview_date: '',
     time_slot: '',
     time_zone: 'PT',
+    debrief_date: '',
     debrief_time: '',
     business_poc: ''
   });
@@ -270,10 +273,11 @@ function renderSpreadsheet() {
           <option value="MT" ${row.time_zone === 'MT' ? 'selected' : ''}>MT</option>
         </select>
       </td>
-      <td><input type="text" class="sheet-input" data-index="${index}" data-field="debrief_time" value="${row.debrief_time || ''}" placeholder="5pm-5:30pm" tabindex="${index * 9 + 8}"></td>
-      <td><input type="text" class="sheet-input" data-index="${index}" data-field="business_poc" value="${row.business_poc}" placeholder="name/name" tabindex="${index * 9 + 9}"></td>
+      <td><input type="text" class="sheet-input" data-index="${index}" data-field="debrief_date" value="${row.debrief_date || ''}" placeholder="MM/DD/YYYY" tabindex="${index * 9 + 8}"></td>
+      <td><input type="text" class="sheet-input" data-index="${index}" data-field="debrief_time" value="${row.debrief_time || ''}" placeholder="5pm-5:30pm" tabindex="${index * 9 + 9}"></td>
+      <td><input type="text" class="sheet-input" data-index="${index}" data-field="business_poc" value="${row.business_poc}" placeholder="name/name" tabindex="${index * 9 + 10}"></td>
       <td>
-        <button class="btn btn-small btn-danger" onclick="deleteSpreadsheetRow(${index})" title="Delete row" tabindex="${index * 9 + 10}">×</button>
+        <button class="btn btn-small btn-danger" onclick="deleteSpreadsheetRow(${index})" title="Delete row" tabindex="${index * 9 + 11}">×</button>
       </td>
     </tr>
   `;
@@ -336,6 +340,7 @@ async function saveBulkPods() {
         interview_date: row.interview_date,
         time_slot: row.time_slot,
         time_zone: row.time_zone,
+        debrief_date: row.debrief_date || '',
         debrief_time: row.debrief_time || '',
         business_poc: row.business_poc
       };
@@ -706,9 +711,9 @@ function renderPods() {
           </h2>
           <div class="pod-info">
             <span><strong>Location:</strong> ${pod.location}</span>
-            <span><strong>Date:</strong> ${pod.interview_date}</span>
-            <span><strong>Interview:</strong> ${timeDisplay}</span>
-            ${pod.debrief_time ? `<span><strong>Debrief:</strong> ${convertTimeToUserTimezone(pod.debrief_time, pod.time_zone, currentUser.timezone)} ${currentUser.timezone}${currentUser.timezone !== pod.time_zone ? ` <span class="original-time">(${pod.debrief_time} ${pod.time_zone})</span>` : ''}</span>` : ''}
+            <span><strong>Interview Date:</strong> ${pod.interview_date}</span>
+            <span><strong>Interview Time:</strong> ${timeDisplay}</span>
+            ${pod.debrief_date || pod.debrief_time ? `<span><strong>Debrief:</strong> ${pod.debrief_date || pod.interview_date} at ${pod.debrief_time ? convertTimeToUserTimezone(pod.debrief_time, pod.time_zone, currentUser.timezone) + ' ' + currentUser.timezone : 'TBD'}${pod.debrief_time && currentUser.timezone !== pod.time_zone ? ` <span class="original-time">(${pod.debrief_time} ${pod.time_zone})</span>` : ''}</span>` : ''}
             ${pod.business_poc ? `<span><strong>POC:</strong> ${pod.business_poc}</span>` : ''}
           </div>
           ${adminButtons ? `<div class="admin-actions">${adminButtons}</div>` : ''}
@@ -735,12 +740,16 @@ function renderSlot(slot, showAll = false, pod = null) {
   // Check if current user is the one who signed up for this slot
   const isCurrentUserSlot = isFilled && slot.interviewer_alias === currentUser.email;
   
+  // Combine focus area and leadership principle into competency
+  const competency = isBarRaiser 
+    ? slot.leadership_principle 
+    : `${slot.focus_area} / ${slot.leadership_principle}`;
+  
   return `
     <div class="${cardClass}">
       <div class="slot-header">${isBarRaiser ? '⭐ Bar Raiser (Debrief Only)' : `Interviewer ${slot.slot_number}`}</div>
       <div class="slot-details">
-        ${!isBarRaiser ? `<div><strong>Focus:</strong> ${slot.focus_area}</div>` : ''}
-        <div><strong>LP:</strong> ${slot.leadership_principle}</div>
+        <div><strong>Competency:</strong> ${competency}</div>
         <div><strong>Required:</strong> ${slot.required_job_family} (${slot.required_level})</div>
         ${isBarRaiser ? '<div class="debrief-note">⏰ Attends debrief only, not the interview</div>' : ''}
       </div>
@@ -780,6 +789,8 @@ function checkSlotEligibility(slot) {
   const slotLevel = slot.required_level;
   const userLevel = currentUser.level;
   const requiredFamily = slot.required_job_family;
+  const focusArea = slot.focus_area || '';
+  const lp = slot.leadership_principle || '';
   
   // Bar Raiser slots - only for Bar Raisers
   if (requiredFamily === 'Bar Raiser' || slot.is_bar_raiser) {
@@ -799,6 +810,21 @@ function checkSlotEligibility(slot) {
   
   // Check job family requirements
   if (requiredFamily === 'Any') {
+    // "Other" job family restrictions for "Any" slots
+    if (currentUser.job_family === 'Other') {
+      // Cannot do slots with these technical focus areas
+      const restrictedFocusAreas = ['Electrical', 'Mechanical', 'Hardware Troubleshooting + Networking', 'Tech'];
+      const combinedText = `${focusArea} ${lp}`.toLowerCase();
+      
+      // Check if any restricted term appears in focus area or LP
+      const hasRestrictedContent = restrictedFocusAreas.some(term => 
+        combinedText.includes(term.toLowerCase())
+      ) || combinedText.includes('networking');
+      
+      if (hasRestrictedContent) {
+        return false;
+      }
+    }
     return true;
   }
   
@@ -818,6 +844,25 @@ function checkSlotEligibility(slot) {
   
   // For non-manager slots, check if user's job family matches
   if (requiredFamily === currentUser.job_family) {
+    return true;
+  }
+  
+  // "Other" job family can do specific job family slots if not restricted
+  if (currentUser.job_family === 'Other') {
+    // Cannot do slots with these technical focus areas
+    const restrictedFocusAreas = ['Electrical', 'Mechanical', 'Hardware Troubleshooting + Networking', 'Tech'];
+    const combinedText = `${focusArea} ${lp}`.toLowerCase();
+    
+    // Check if any restricted term appears
+    const hasRestrictedContent = restrictedFocusAreas.some(term => 
+      combinedText.includes(term.toLowerCase())
+    ) || combinedText.includes('networking');
+    
+    if (hasRestrictedContent) {
+      return false;
+    }
+    
+    // Can do non-restricted slots from specific job families
     return true;
   }
   
@@ -1087,3 +1132,138 @@ async function deletePod(podId) {
 }
 
 
+
+
+async function showMyInterviews() {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/my-interviews`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (response.status === 401) {
+      handleLogout();
+      return;
+    }
+    
+    const myPods = await response.json();
+    
+    const modal = document.getElementById('myInterviewsModal');
+    const calendar = document.getElementById('myInterviewsCalendar');
+    
+    if (myPods.length === 0) {
+      calendar.innerHTML = '<div class="no-interviews"><p>You are not scheduled for any interviews yet.</p></div>';
+    } else {
+      // Group by date
+      const podsByDate = {};
+      myPods.forEach(pod => {
+        const interviewDate = pod.interview_date;
+        const debriefDate = pod.debrief_date || pod.interview_date;
+        
+        // Add to interview date
+        if (!podsByDate[interviewDate]) {
+          podsByDate[interviewDate] = { interviews: [], debriefs: [] };
+        }
+        podsByDate[interviewDate].interviews.push(pod);
+        
+        // Add to debrief date if different
+        if (debriefDate !== interviewDate) {
+          if (!podsByDate[debriefDate]) {
+            podsByDate[debriefDate] = { interviews: [], debriefs: [] };
+          }
+          podsByDate[debriefDate].debriefs.push(pod);
+        } else {
+          podsByDate[interviewDate].debriefs.push(pod);
+        }
+      });
+      
+      // Sort dates
+      const sortedDates = Object.keys(podsByDate).sort((a, b) => {
+        return parseDate(a) - parseDate(b);
+      });
+      
+      calendar.innerHTML = sortedDates.map(date => {
+        const dayData = podsByDate[date];
+        const dateObj = parseDate(date);
+        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+        
+        return `
+          <div class="calendar-day">
+            <div class="calendar-day-header">
+              <h3>${dayName}, ${date}</h3>
+            </div>
+            <div class="calendar-events">
+              ${dayData.interviews.length > 0 ? `
+                <div class="calendar-section">
+                  <h4>🎤 Interviews</h4>
+                  ${dayData.interviews.map(pod => {
+                    const locationCode = pod.location.split('-')[0].split(' ')[0].toUpperCase();
+                    const convertedTime = convertTimeToUserTimezone(pod.time_slot, pod.time_zone, currentUser.timezone);
+                    const timeDisplay = currentUser.timezone === pod.time_zone 
+                      ? `${pod.time_slot} ${pod.time_zone}`
+                      : `${convertedTime} ${currentUser.timezone} <span class="time-note">(${pod.time_slot} ${pod.time_zone})</span>`;
+                    
+                    const mySlot = pod.slots[0]; // User's slot
+                    const isBarRaiser = mySlot.is_bar_raiser;
+                    const competency = isBarRaiser 
+                      ? mySlot.leadership_principle 
+                      : `${mySlot.focus_area} / ${mySlot.leadership_principle}`;
+                    
+                    return `
+                      <div class="calendar-event ${isBarRaiser ? 'bar-raiser-event' : ''}">
+                        <div class="event-title">
+                          ${isBarRaiser ? '⭐ ' : ''}${locationCode}-${pod.pod_number} - ${pod.job_type} ${pod.level}
+                        </div>
+                        <div class="event-details">
+                          <div><strong>Time:</strong> ${timeDisplay}</div>
+                          <div><strong>Location:</strong> ${pod.location}</div>
+                          ${!isBarRaiser ? `<div><strong>Your Role:</strong> Interviewer ${mySlot.slot_number}</div>` : '<div><strong>Your Role:</strong> Bar Raiser (Debrief Only)</div>'}
+                          <div><strong>Competency:</strong> ${competency}</div>
+                          ${pod.business_poc ? `<div><strong>POC:</strong> ${pod.business_poc}</div>` : ''}
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              ` : ''}
+              
+              ${dayData.debriefs.length > 0 ? `
+                <div class="calendar-section">
+                  <h4>💬 Debriefs</h4>
+                  ${dayData.debriefs.map(pod => {
+                    const locationCode = pod.location.split('-')[0].split(' ')[0].toUpperCase();
+                    const debriefTime = pod.debrief_time || 'TBD';
+                    const convertedTime = debriefTime !== 'TBD' ? convertTimeToUserTimezone(debriefTime, pod.time_zone, currentUser.timezone) : 'TBD';
+                    const timeDisplay = debriefTime === 'TBD' ? 'TBD' : (currentUser.timezone === pod.time_zone 
+                      ? `${debriefTime} ${pod.time_zone}`
+                      : `${convertedTime} ${currentUser.timezone} <span class="time-note">(${debriefTime} ${pod.time_zone})</span>`);
+                    
+                    return `
+                      <div class="calendar-event debrief-event">
+                        <div class="event-title">
+                          ${locationCode}-${pod.pod_number} - ${pod.job_type} ${pod.level} Debrief
+                        </div>
+                        <div class="event-details">
+                          <div><strong>Time:</strong> ${timeDisplay}</div>
+                          <div><strong>Location:</strong> ${pod.location}</div>
+                          ${pod.business_poc ? `<div><strong>POC:</strong> ${pod.business_poc}</div>` : ''}
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    modal.style.display = 'block';
+  } catch (error) {
+    console.error('Error loading my interviews:', error);
+    alert('Failed to load your scheduled interviews');
+  }
+}
