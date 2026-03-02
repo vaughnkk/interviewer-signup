@@ -27,6 +27,7 @@ db.serialize(() => {
     interview_date TEXT NOT NULL,
     time_slot TEXT NOT NULL,
     time_zone TEXT NOT NULL,
+    debrief_date TEXT,
     debrief_time TEXT,
     business_poc TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -68,14 +69,14 @@ db.serialize(() => {
       console.log('Seeding database...');
       
       const samplePods = [
-        { pod_number: 110, job_type: 'DCEO', level: 'L3', location: 'IAD', interview_date: '4/2/2026', time_slot: '1am-12pm', time_zone: 'PT', debrief_time: '12:30pm-1pm', business_poc: 'umeh/castroleo' },
-        { pod_number: 38, job_type: 'DCO', level: 'L4', location: 'PDX', interview_date: '4/2/2026', time_slot: '1pm-4:30pm', time_zone: 'PT', debrief_time: '5pm-5:30pm', business_poc: 'umeh/castroleo' },
-        { pod_number: 40, job_type: 'ID', level: 'L3', location: 'IAD - Core', interview_date: '4/1/2026', time_slot: '8:30am - 11:15 am', time_zone: 'ET', debrief_time: '11:30am-12pm', business_poc: 'leonle/noire' }
+        { pod_number: 110, job_type: 'DCEO', level: 'L3', location: 'IAD', interview_date: '4/2/2026', time_slot: '1am-12pm', time_zone: 'PT', debrief_date: '4/2/2026', debrief_time: '12:30pm-1pm', business_poc: 'umeh/castroleo' },
+        { pod_number: 38, job_type: 'DCO', level: 'L4', location: 'PDX', interview_date: '4/2/2026', time_slot: '1pm-4:30pm', time_zone: 'PT', debrief_date: '4/3/2026', debrief_time: '9am-9:30am', business_poc: 'umeh/castroleo' },
+        { pod_number: 40, job_type: 'ID', level: 'L3', location: 'IAD - Core', interview_date: '4/1/2026', time_slot: '8:30am - 11:15 am', time_zone: 'ET', debrief_date: '4/1/2026', debrief_time: '11:30am-12pm', business_poc: 'leonle/noire' }
       ];
       
       samplePods.forEach(pod => {
-        db.run(`INSERT INTO pods (pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_time, business_poc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [pod.pod_number, pod.job_type, pod.level, pod.location, pod.interview_date, pod.time_slot, pod.time_zone, pod.debrief_time, pod.business_poc],
+        db.run(`INSERT INTO pods (pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_date, debrief_time, business_poc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [pod.pod_number, pod.job_type, pod.level, pod.location, pod.interview_date, pod.time_slot, pod.time_zone, pod.debrief_date, pod.debrief_time, pod.business_poc],
           function(err) {
             if (!err) {
               const podId = this.lastID;
@@ -175,6 +176,7 @@ app.get('/api/admin/pods', verifyToken, (req, res) => {
                'leadership_principle', i.leadership_principle,
                'required_job_family', i.required_job_family,
                'required_level', i.required_level,
+               'is_bar_raiser', i.is_bar_raiser,
                'interviewer_name', i.interviewer_name,
                'interviewer_alias', i.interviewer_alias,
                'status', i.status
@@ -210,6 +212,7 @@ app.get('/api/all-pods', verifyToken, (req, res) => {
                'leadership_principle', i.leadership_principle,
                'required_job_family', i.required_job_family,
                'required_level', i.required_level,
+               'is_bar_raiser', i.is_bar_raiser,
                'interviewer_name', i.interviewer_name,
                'interviewer_alias', i.interviewer_alias,
                'status', i.status
@@ -233,6 +236,67 @@ app.get('/api/all-pods', verifyToken, (req, res) => {
   });
 });
 
+// Get user's scheduled interviews
+app.get('/api/my-interviews', verifyToken, (req, res) => {
+  const user = req.user;
+  
+  const query = `
+    SELECT p.*, 
+           i.id as slot_id,
+           i.slot_number,
+           i.focus_area,
+           i.leadership_principle,
+           i.required_job_family,
+           i.required_level,
+           i.is_bar_raiser,
+           i.interviewer_name,
+           i.interviewer_alias
+    FROM pods p
+    INNER JOIN interview_slots i ON p.id = i.pod_id
+    WHERE i.interviewer_alias = ? AND i.status = 'filled'
+    ORDER BY p.interview_date, p.time_slot
+  `;
+  
+  db.all(query, [user.email], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    // Group by pod
+    const podsMap = {};
+    rows.forEach(row => {
+      if (!podsMap[row.id]) {
+        podsMap[row.id] = {
+          id: row.id,
+          pod_number: row.pod_number,
+          job_type: row.job_type,
+          level: row.level,
+          location: row.location,
+          interview_date: row.interview_date,
+          time_slot: row.time_slot,
+          time_zone: row.time_zone,
+          debrief_date: row.debrief_date,
+          debrief_time: row.debrief_time,
+          business_poc: row.business_poc,
+          slots: []
+        };
+      }
+      
+      podsMap[row.id].slots.push({
+        id: row.slot_id,
+        slot_number: row.slot_number,
+        focus_area: row.focus_area,
+        leadership_principle: row.leadership_principle,
+        required_job_family: row.required_job_family,
+        required_level: row.required_level,
+        is_bar_raiser: row.is_bar_raiser,
+        interviewer_name: row.interviewer_name,
+        interviewer_alias: row.interviewer_alias
+      });
+    });
+    
+    res.json(Object.values(podsMap));
+  });
+});
+
 // Regular users: Get eligible pods only
 app.get('/api/pods', verifyToken, (req, res) => {
   const user = req.user;
@@ -247,6 +311,7 @@ app.get('/api/pods', verifyToken, (req, res) => {
                'leadership_principle', i.leadership_principle,
                'required_job_family', i.required_job_family,
                'required_level', i.required_level,
+               'is_bar_raiser', i.is_bar_raiser,
                'interviewer_name', i.interviewer_name,
                'interviewer_alias', i.interviewer_alias,
                'status', i.status
@@ -277,6 +342,13 @@ app.get('/api/pods', verifyToken, (req, res) => {
         const slotLevel = slot.required_level;
         const userLevel = user.level;
         const requiredFamily = slot.required_job_family;
+        const focusArea = slot.focus_area || '';
+        const lp = slot.leadership_principle || '';
+        
+        // Bar Raiser slots - only for Bar Raisers
+        if (requiredFamily === 'Bar Raiser' || slot.is_bar_raiser) {
+          return user.is_bar_raiser;
+        }
         
         // Check level requirements
         if (slotLevel.includes('L4+')) {
@@ -287,15 +359,24 @@ app.get('/api/pods', verifyToken, (req, res) => {
         
         // Check job family requirements
         if (requiredFamily === 'Any') {
-          return true; // Anyone can fill this slot (if they meet level requirements)
+          // "Other" job family restrictions for "Any" slots
+          if (user.job_family === 'Other') {
+            const restrictedFocusAreas = ['Electrical', 'Mechanical', 'Hardware Troubleshooting + Networking', 'Tech'];
+            const combinedText = `${focusArea} ${lp}`.toLowerCase();
+            
+            const hasRestrictedContent = restrictedFocusAreas.some(term => 
+              combinedText.includes(term.toLowerCase())
+            ) || combinedText.includes('networking');
+            
+            if (hasRestrictedContent) return false;
+          }
+          return true;
         }
         
         // Check if slot requires a manager from specific job family
         if (requiredFamily.includes('Manager')) {
-          // Extract the job family from "DCEO Manager", "ID Manager", etc.
           const familyPart = requiredFamily.replace(' Manager', '').replace('/Chief Engineer', '');
           
-          // User must be a manager AND match the job family
           if (!user.is_manager) return false;
           if (!familyPart.includes(user.job_family)) return false;
           
@@ -303,8 +384,21 @@ app.get('/api/pods', verifyToken, (req, res) => {
         }
         
         // For non-manager slots, check if user's job family matches
-        // Handle cases like "DCEO" or "DCO" (exact match required)
         if (requiredFamily === user.job_family) {
+          return true;
+        }
+        
+        // "Other" job family can do specific job family slots if not restricted
+        if (user.job_family === 'Other') {
+          const restrictedFocusAreas = ['Electrical', 'Mechanical', 'Hardware Troubleshooting + Networking', 'Tech'];
+          const combinedText = `${focusArea} ${lp}`.toLowerCase();
+          
+          const hasRestrictedContent = restrictedFocusAreas.some(term => 
+            combinedText.includes(term.toLowerCase())
+          ) || combinedText.includes('networking');
+          
+          if (hasRestrictedContent) return false;
+          
           return true;
         }
         
@@ -424,12 +518,12 @@ app.post('/api/admin/pods', verifyToken, (req, res) => {
     return res.status(403).json({ error: 'Admin access required' });
   }
   
-  const { pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_time, business_poc } = req.body;
+  const { pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_date, debrief_time, business_poc } = req.body;
   
   db.run(
-    `INSERT INTO pods (pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_time, business_poc)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_time, business_poc],
+    `INSERT INTO pods (pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_date, debrief_time, business_poc)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_date, debrief_time, business_poc],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       
@@ -479,11 +573,11 @@ app.put('/api/admin/pods/:id', verifyToken, (req, res) => {
   }
   
   const { id } = req.params;
-  const { pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_time, business_poc } = req.body;
+  const { pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_date, debrief_time, business_poc } = req.body;
   
   db.run(
-    `UPDATE pods SET pod_number = ?, job_type = ?, level = ?, location = ?, interview_date = ?, time_slot = ?, time_zone = ?, debrief_time = ?, business_poc = ? WHERE id = ?`,
-    [pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_time, business_poc, id],
+    `UPDATE pods SET pod_number = ?, job_type = ?, level = ?, location = ?, interview_date = ?, time_slot = ?, time_zone = ?, debrief_date = ?, debrief_time = ?, business_poc = ? WHERE id = ?`,
+    [pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_date, debrief_time, business_poc, id],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message: 'Pod updated successfully' });
