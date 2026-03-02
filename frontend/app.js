@@ -120,25 +120,13 @@ function toggleAllPodsView() {
 }
 
 function showAddPodModal() {
-  // Hide main app and show pod management view
+  // Hide main app and show spreadsheet view directly
   document.getElementById('mainApp').style.display = 'none';
-  document.getElementById('podManagementView').style.display = 'block';
-  loadManagementPods();
-}
-
-function closePodManagement() {
-  document.getElementById('podManagementView').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'block';
-  loadPods();
-}
-
-function showBulkAddMode() {
-  document.getElementById('podManagementView').style.display = 'none';
   document.getElementById('spreadsheetView').style.display = 'block';
-  initializeSpreadsheet();
+  loadPodsIntoSpreadsheet();
 }
 
-async function loadManagementPods() {
+async function loadPodsIntoSpreadsheet() {
   try {
     const token = localStorage.getItem('token');
     const response = await fetch(`${API_URL}/admin/pods`, {
@@ -153,159 +141,30 @@ async function loadManagementPods() {
     }
     
     const pods = await response.json();
-    renderManagementPods(pods);
-  } catch (error) {
-    console.error('Error loading management pods:', error);
-    alert('Failed to load pods');
-  }
-}
-
-function renderManagementPods(pods) {
-  const container = document.getElementById('managementPodsContainer');
-  
-  if (pods.length === 0) {
-    container.innerHTML = '<div class="no-slots"><p>No pods created yet.</p><p>Click "Bulk Add Pods" to get started.</p></div>';
-    return;
-  }
-  
-  // Sort by date
-  pods.sort((a, b) => {
-    const dateA = parseDate(a.interview_date);
-    const dateB = parseDate(b.interview_date);
-    return dateA - dateB;
-  });
-  
-  container.innerHTML = pods.map(pod => {
-    const locationCode = pod.location.split('-')[0].split(' ')[0].toUpperCase();
     
-    return `
-      <div class="management-pod-card">
-        <div class="management-pod-header">
-          <div class="pod-title-section">
-            <h3>${locationCode}-${pod.pod_number}</h3>
-            <div class="pod-badges">
-              <span class="job-type-badge">${pod.job_type}</span>
-              <span class="level-badge ${pod.level.toLowerCase()}">${pod.level}</span>
-            </div>
-          </div>
-          <div class="pod-actions-section">
-            <button class="btn btn-small edit-pod-btn" data-pod='${JSON.stringify(pod).replace(/'/g, "&apos;")}'>
-              Edit Pod Info
-            </button>
-            <button class="btn btn-small btn-danger delete-pod-btn" data-pod-id="${pod.id}">
-              Delete Pod
-            </button>
-          </div>
-        </div>
-        
-        <div class="management-pod-info">
-          <div class="info-row">
-            <span class="info-label">Location:</span>
-            <span class="info-value">${pod.location}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Date:</span>
-            <span class="info-value">${pod.interview_date}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Time:</span>
-            <span class="info-value">${pod.time_slot} ${pod.time_zone}</span>
-          </div>
-          ${pod.business_poc ? `
-            <div class="info-row">
-              <span class="info-label">POC:</span>
-              <span class="info-value">${pod.business_poc}</span>
-            </div>
-          ` : ''}
-        </div>
-        
-        <div class="management-slots">
-          <h4>Interview Slots (${pod.slots.filter(s => s.status === 'filled').length}/${pod.slots.length} filled)</h4>
-          <div class="management-slots-grid">
-            ${pod.slots.map(slot => `
-              <div class="management-slot ${slot.status}">
-                <div class="slot-number">Slot ${slot.slot_number}</div>
-                <div class="slot-requirements">
-                  <div><strong>Focus:</strong> ${slot.focus_area}</div>
-                  <div><strong>LP:</strong> ${slot.leadership_principle}</div>
-                  <div><strong>Required:</strong> ${slot.required_job_family} (${slot.required_level})</div>
-                </div>
-                ${slot.status === 'filled' ? `
-                  <div class="slot-filled-info">
-                    <div class="filled-badge">✓ FILLED</div>
-                    <div class="interviewer-name">${slot.interviewer_name}</div>
-                    <div class="interviewer-email">${slot.interviewer_alias}</div>
-                    <button class="btn btn-small btn-danger remove-interviewer-btn" 
-                            data-slot-id="${slot.id}">
-                      Remove Interviewer
-                    </button>
-                  </div>
-                ` : `
-                  <div class="slot-open-info">
-                    <span class="open-badge">OPEN</span>
-                  </div>
-                `}
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-  
-  // Attach event listeners
-  attachManagementEventListeners();
-}
-
-function attachManagementEventListeners() {
-  // Edit pod buttons
-  document.querySelectorAll('.edit-pod-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const pod = JSON.parse(this.getAttribute('data-pod').replace(/&apos;/g, "'"));
-      showEditPodModal(pod);
-    });
-  });
-  
-  // Delete pod buttons
-  document.querySelectorAll('.delete-pod-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const podId = this.getAttribute('data-pod-id');
-      if (confirm('Are you sure you want to delete this pod? This will remove all slots and cannot be undone.')) {
-        deletePod(podId);
-      }
-    });
-  });
-  
-  // Remove interviewer buttons
-  document.querySelectorAll('.remove-interviewer-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const slotId = this.getAttribute('data-slot-id');
-      if (confirm('Remove this interviewer from the slot?')) {
-        removeInterviewer(slotId);
-      }
-    });
-  });
-}
-
-async function removeInterviewer(slotId) {
-  try {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_URL}/admin/slots/${slotId}/remove`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
+    // Convert existing pods to spreadsheet rows
+    spreadsheetRows = pods.map(pod => ({
+      id: pod.id, // Keep track of existing pod ID for editing
+      pod_number: pod.pod_number,
+      job_type: pod.job_type,
+      level: pod.level,
+      location: pod.location,
+      interview_date: pod.interview_date,
+      time_slot: pod.time_slot,
+      time_zone: pod.time_zone,
+      business_poc: pod.business_poc || '',
+      isExisting: true // Flag to know this is an existing pod
+    }));
     
-    if (response.ok) {
-      alert('Interviewer removed successfully');
-      loadManagementPods();
-    } else {
-      alert('Failed to remove interviewer');
+    // Add 10 empty rows for new pods
+    for (let i = 0; i < 10; i++) {
+      addSpreadsheetRow();
     }
+    
+    renderSpreadsheet();
   } catch (error) {
-    console.error('Error removing interviewer:', error);
-    alert('Failed to remove interviewer');
+    console.error('Error loading pods:', error);
+    alert('Failed to load pods');
   }
 }
 
@@ -325,8 +184,8 @@ function showEditPodModal(pod) {
 
 function closeSpreadsheet() {
   document.getElementById('spreadsheetView').style.display = 'none';
-  document.getElementById('podManagementView').style.display = 'block';
-  loadManagementPods();
+  document.getElementById('mainApp').style.display = 'block';
+  loadPods();
 }
 
 let spreadsheetRows = [];
@@ -385,7 +244,9 @@ function renderSpreadsheet() {
         </select>
       </td>
       <td><input type="text" class="sheet-input" data-index="${index}" data-field="business_poc" value="${row.business_poc}" placeholder="name/name"></td>
-      <td><button class="btn btn-small btn-danger" onclick="deleteSpreadsheetRow(${index})">×</button></td>
+      <td>
+        <button class="btn btn-small btn-danger" onclick="deleteSpreadsheetRow(${index})" title="Delete row">×</button>
+      </td>
     </tr>
   `).join('');
   
@@ -415,44 +276,45 @@ function addMoreRows() {
 }
 
 async function saveBulkPods() {
-  // Filter out empty rows
-  const validRows = spreadsheetRows.filter(row => 
-    row.pod_number && row.location && row.interview_date && row.time_slot
-  );
-  
-  if (validRows.length === 0) {
-    alert('Please fill in at least one complete row (Pod #, Location, Date, and Time are required)');
-    return;
-  }
-  
-  const confirmMsg = `You are about to create ${validRows.length} pod(s). Continue?`;
-  if (!confirm(confirmMsg)) return;
+  const token = localStorage.getItem('token');
+  let successCount = 0;
+  let errorCount = 0;
   
   document.getElementById('saveBulkBtn').disabled = true;
   document.getElementById('saveBulkBtn').textContent = 'Saving...';
   
-  let successCount = 0;
-  let errorCount = 0;
-  
-  for (const row of validRows) {
+  for (const row of spreadsheetRows) {
+    // Skip empty rows
+    if (!row.pod_number || !row.location || !row.interview_date || !row.time_slot) {
+      continue;
+    }
+    
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/admin/pods`, {
-        method: 'POST',
+      const podData = {
+        pod_number: parseInt(row.pod_number),
+        job_type: row.job_type,
+        level: row.level,
+        location: row.location,
+        interview_date: row.interview_date,
+        time_slot: row.time_slot,
+        time_zone: row.time_zone,
+        business_poc: row.business_poc
+      };
+      
+      // If row has an ID and isExisting flag, update it; otherwise create new
+      const url = row.isExisting && row.id 
+        ? `${API_URL}/admin/pods/${row.id}`
+        : `${API_URL}/admin/pods`;
+      
+      const method = row.isExisting && row.id ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          pod_number: parseInt(row.pod_number),
-          job_type: row.job_type,
-          level: row.level,
-          location: row.location,
-          interview_date: row.interview_date,
-          time_slot: row.time_slot,
-          time_zone: row.time_zone,
-          business_poc: row.business_poc
-        })
+        body: JSON.stringify(podData)
       });
       
       if (response.ok) {
@@ -461,7 +323,7 @@ async function saveBulkPods() {
         errorCount++;
       }
     } catch (error) {
-      console.error('Error creating pod:', error);
+      console.error('Error saving pod:', error);
       errorCount++;
     }
   }
@@ -469,7 +331,7 @@ async function saveBulkPods() {
   document.getElementById('saveBulkBtn').disabled = false;
   document.getElementById('saveBulkBtn').textContent = 'Save All Pods';
   
-  alert(`Created ${successCount} pod(s) successfully. ${errorCount > 0 ? errorCount + ' failed.' : ''}`);
+  alert(`Saved ${successCount} pod(s) successfully. ${errorCount > 0 ? errorCount + ' failed.' : ''}`);
   
   if (successCount > 0) {
     closeSpreadsheet();
@@ -509,8 +371,10 @@ async function handleRegister(e) {
   e.preventDefault();
   
   const name = document.getElementById('registerName').value;
+  const alias = document.getElementById('registerAlias').value;
   const email = document.getElementById('registerEmail').value;
   const password = document.getElementById('registerPassword').value;
+  const timezone = document.getElementById('registerTimezone').value;
   const job_family = document.getElementById('registerJobFamily').value;
   const level = document.getElementById('registerLevel').value;
   const is_manager = document.getElementById('managerYes').checked;
@@ -520,7 +384,7 @@ async function handleRegister(e) {
     const response = await fetch(`${API_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, job_family, level, is_manager, is_bar_raiser })
+      body: JSON.stringify({ name, alias, email, password, timezone, job_family, level, is_manager, is_bar_raiser })
     });
     
     if (response.ok) {
@@ -631,6 +495,75 @@ function parseDate(dateStr) {
   return new Date(dateStr);
 }
 
+// Timezone conversion utilities
+const timezoneOffsets = {
+  'PT': -8,  // Pacific Time (UTC-8)
+  'MT': -7,  // Mountain Time (UTC-7)
+  'CT': -6,  // Central Time (UTC-6)
+  'ET': -5   // Eastern Time (UTC-5)
+};
+
+function convertTimeToUserTimezone(timeSlot, fromTimezone, toTimezone) {
+  if (fromTimezone === toTimezone) {
+    return timeSlot; // No conversion needed
+  }
+  
+  // Extract time range (e.g., "1pm-4:30pm" or "8:30am - 11:15 am")
+  const timePattern = /(\d{1,2}):?(\d{2})?\s*(am|pm)\s*-\s*(\d{1,2}):?(\d{2})?\s*(am|pm)/i;
+  const match = timeSlot.match(timePattern);
+  
+  if (!match) {
+    return timeSlot + ` (${fromTimezone})`; // Return original if can't parse
+  }
+  
+  const [_, startHour, startMin, startPeriod, endHour, endMin, endPeriod] = match;
+  
+  // Convert to 24-hour format
+  let start24 = parseInt(startHour);
+  if (startPeriod.toLowerCase() === 'pm' && start24 !== 12) start24 += 12;
+  if (startPeriod.toLowerCase() === 'am' && start24 === 12) start24 = 0;
+  
+  let end24 = parseInt(endHour);
+  if (endPeriod.toLowerCase() === 'pm' && end24 !== 12) end24 += 12;
+  if (endPeriod.toLowerCase() === 'am' && end24 === 12) end24 = 0;
+  
+  // Calculate hour difference
+  const hourDiff = timezoneOffsets[toTimezone] - timezoneOffsets[fromTimezone];
+  
+  // Apply conversion
+  let newStart = start24 + hourDiff;
+  let newEnd = end24 + hourDiff;
+  
+  // Handle day overflow/underflow
+  let dayNote = '';
+  if (newStart < 0) {
+    newStart += 24;
+    dayNote = ' (prev day)';
+  } else if (newStart >= 24) {
+    newStart -= 24;
+    dayNote = ' (next day)';
+  }
+  
+  if (newEnd < 0) {
+    newEnd += 24;
+  } else if (newEnd >= 24) {
+    newEnd -= 24;
+  }
+  
+  // Convert back to 12-hour format
+  const formatTime = (hour24, minutes) => {
+    const period = hour24 >= 12 ? 'pm' : 'am';
+    let hour12 = hour24 % 12;
+    if (hour12 === 0) hour12 = 12;
+    return minutes ? `${hour12}:${minutes}${period}` : `${hour12}${period}`;
+  };
+  
+  const startFormatted = formatTime(newStart, startMin);
+  const endFormatted = formatTime(newEnd, endMin);
+  
+  return `${startFormatted}-${endFormatted}${dayNote}`;
+}
+
 function applyFilters() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -697,6 +630,12 @@ function renderPods() {
   container.innerHTML = pods.map(pod => {
     const locationCode = pod.location.split('-')[0].split(' ')[0].toUpperCase();
     
+    // Convert time to user's timezone
+    const convertedTime = convertTimeToUserTimezone(pod.time_slot, pod.time_zone, currentUser.timezone);
+    const timeDisplay = currentUser.timezone === pod.time_zone 
+      ? `${pod.time_slot} ${pod.time_zone}`
+      : `${convertedTime} ${currentUser.timezone} <span class="original-time">(${pod.time_slot} ${pod.time_zone})</span>`;
+    
     // Calculate urgency
     const podDate = parseDate(pod.interview_date);
     const daysDiff = Math.ceil((podDate - today) / (1000 * 60 * 60 * 24));
@@ -729,7 +668,7 @@ function renderPods() {
           <div class="pod-info">
             <span><strong>Location:</strong> ${pod.location}</span>
             <span><strong>Date:</strong> ${pod.interview_date}</span>
-            <span><strong>Time:</strong> ${pod.time_slot} ${pod.time_zone}</span>
+            <span><strong>Time:</strong> ${timeDisplay}</span>
             ${pod.business_poc ? `<span><strong>POC:</strong> ${pod.business_poc}</span>` : ''}
           </div>
           ${adminButtons ? `<div class="admin-actions">${adminButtons}</div>` : ''}
@@ -868,7 +807,14 @@ async function handleDirectSignup(slotId) {
     });
     
     if (response.ok) {
+      const data = await response.json();
       alert('Successfully signed up!');
+      
+      // Show calendar invite download option
+      if (confirm('Would you like to download a placeholder calendar invite?')) {
+        downloadCalendarInvite(data.pod, data.slot);
+      }
+      
       loadPods();
     } else {
       alert('Failed to sign up');
@@ -877,6 +823,97 @@ async function handleDirectSignup(slotId) {
     console.error('Error signing up:', error);
     alert('Failed to sign up');
   }
+}
+
+function downloadCalendarInvite(pod, slot) {
+  // Parse the date
+  const dateParts = pod.interview_date.split('/');
+  const year = dateParts[2];
+  const month = dateParts[0].padStart(2, '0');
+  const day = dateParts[1].padStart(2, '0');
+  
+  // Parse the time slot (e.g., "1pm-4pm" or "8:30am-11:15am")
+  const timePattern = /(\d{1,2}):?(\d{2})?\s*(am|pm)\s*-\s*(\d{1,2}):?(\d{2})?\s*(am|pm)/i;
+  const match = pod.time_slot.match(timePattern);
+  
+  if (!match) {
+    alert('Unable to parse time format');
+    return;
+  }
+  
+  const [_, startHour, startMin, startPeriod, endHour, endMin, endPeriod] = match;
+  
+  // Convert to 24-hour format
+  let start24 = parseInt(startHour);
+  if (startPeriod.toLowerCase() === 'pm' && start24 !== 12) start24 += 12;
+  if (startPeriod.toLowerCase() === 'am' && start24 === 12) start24 = 0;
+  
+  let end24 = parseInt(endHour);
+  if (endPeriod.toLowerCase() === 'pm' && end24 !== 12) end24 += 12;
+  if (endPeriod.toLowerCase() === 'am' && end24 === 12) end24 = 0;
+  
+  // Format for iCalendar (YYYYMMDDTHHMMSS)
+  const startTime = `${year}${month}${day}T${start24.toString().padStart(2, '0')}${(startMin || '00')}00`;
+  const endTime = `${year}${month}${day}T${end24.toString().padStart(2, '0')}${(endMin || '00')}00`;
+  
+  // Get timezone abbreviation for iCal format
+  const tzidMap = {
+    'PT': 'America/Los_Angeles',
+    'MT': 'America/Denver',
+    'CT': 'America/Chicago',
+    'ET': 'America/New_York'
+  };
+  const tzid = tzidMap[pod.time_zone] || 'America/Los_Angeles';
+  
+  // Generate unique ID
+  const uid = `${pod.id}-${slot.id}-${Date.now()}@ais-interviewer-signup`;
+  
+  // Create iCalendar content
+  const icsContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//AIS Interviewer POD Sign Up//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:REQUEST',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+    `DTSTART;TZID=${tzid}:${startTime}`,
+    `DTEND;TZID=${tzid}:${endTime}`,
+    `SUMMARY:PLACEHOLDER - ${pod.job_type} ${pod.level} Interview Pod ${pod.pod_number}`,
+    `LOCATION:${pod.location}`,
+    `DESCRIPTION:Interview Pod Details:\\n` +
+    `Pod Number: ${pod.pod_number}\\n` +
+    `Job Type: ${pod.job_type}\\n` +
+    `Level: ${pod.level}\\n` +
+    `Your Role: ${slot.focus_area}\\n` +
+    `Leadership Principle: ${slot.leadership_principle}\\n` +
+    `\\n` +
+    `NOTE: This is a PLACEHOLDER calendar invite. ` +
+    `You will receive the official calendar invite with candidate details and Chime link closer to the interview date.\\n` +
+    `\\n` +
+    `Business POC: ${pod.business_poc || 'TBD'}`,
+    'STATUS:TENTATIVE',
+    'SEQUENCE:0',
+    `ORGANIZER;CN=AIS Recruiting:mailto:recruiting@example.com`,
+    `ATTENDEE;CN=${currentUser.name};RSVP=TRUE:mailto:${currentUser.email}`,
+    'BEGIN:VALARM',
+    'TRIGGER:-PT24H',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Interview Pod Tomorrow',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+  
+  // Create blob and download
+  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+  const link = document.createElement('a');
+  link.href = window.URL.createObjectURL(blob);
+  link.download = `PLACEHOLDER-Pod${pod.pod_number}-${pod.job_type}-${pod.level}.ics`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 async function handleAddPod(e) {
@@ -948,13 +985,7 @@ async function handleEditPod(e) {
     if (response.ok) {
       alert('Pod updated successfully!');
       document.getElementById('editPodModal').style.display = 'none';
-      
-      // Check if we're in management view or main view
-      if (document.getElementById('podManagementView').style.display === 'block') {
-        loadManagementPods();
-      } else {
-        loadPods();
-      }
+      loadPods();
     } else {
       const data = await response.json();
       alert('Failed to update pod: ' + data.error);
@@ -977,7 +1008,7 @@ async function deletePod(podId) {
     
     if (response.ok) {
       alert('Pod deleted successfully!');
-      loadManagementPods();
+      loadPodsIntoSpreadsheet();
     } else {
       alert('Failed to delete pod');
     }

@@ -424,6 +424,13 @@ body {
   margin-right: 4px;
 }
 
+.original-time {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-left: 4px;
+}
+
 /* Badges */
 .job-type-badge {
   display: inline-block;

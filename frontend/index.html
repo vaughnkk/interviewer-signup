@@ -41,12 +41,26 @@
             <input type="text" id="registerName" required>
           </div>
           <div class="form-group">
+            <label for="registerAlias">Alias:</label>
+            <input type="text" id="registerAlias" placeholder="e.g., jsmith" required>
+          </div>
+          <div class="form-group">
             <label for="registerEmail">Email:</label>
             <input type="email" id="registerEmail" required>
           </div>
           <div class="form-group">
             <label for="registerPassword">Password:</label>
             <input type="password" id="registerPassword" minlength="6" required>
+          </div>
+          <div class="form-group">
+            <label for="registerTimezone">Primary Timezone:</label>
+            <select id="registerTimezone" required>
+              <option value="">Select your timezone...</option>
+              <option value="PT">PT - Pacific Time</option>
+              <option value="MT">MT - Mountain Time</option>
+              <option value="CT">CT - Central Time</option>
+              <option value="ET">ET - Eastern Time</option>
+            </select>
           </div>
           
           <div class="form-divider">Profile Questions</div>
