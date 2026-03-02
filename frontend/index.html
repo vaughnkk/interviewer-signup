@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interview Pod Sign-up</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Authentication Screen -->
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-container">
+      <h1>Interview Pod Sign-up</h1>
+      
+      <!-- Login Form -->
+      <div id="loginForm" class="auth-form">
+        <h2>Login</h2>
+        <form id="loginFormElement">
+          <div class="form-group">
+            <label for="loginEmail">Email:</label>
+            <input type="email" id="loginEmail" required>
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Password:</label>
+            <input type="password" id="loginPassword" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Login</button>
+        </form>
+        <p class="auth-switch">Don't have an account? <a href="#" id="showRegister">Register</a></p>
+      </div>
+      
+      <!-- Register Form -->
+      <div id="registerForm" class="auth-form" style="display: none;">
+        <h2>Create Your Account</h2>
+        <form id="registerFormElement">
+          <div class="form-group">
+            <label for="registerName">Full Name:</label>
+            <input type="text" id="registerName" required>
+          </div>
+          <div class="form-group">
+            <label for="registerEmail">Email:</label>
+            <input type="email" id="registerEmail" required>
+          </div>
+          <div class="form-group">
+            <label for="registerPassword">Password:</label>
+            <input type="password" id="registerPassword" minlength="6" required>
+          </div>
+          
+          <div class="form-divider">Profile Questions</div>
+          
+          <div class="form-group">
+            <label for="registerLevel">1. What level are you?</label>
+            <select id="registerLevel" required>
+              <option value="">Select your level...</option>
+              <option value="L3">L3</option>
+              <option value="L4">L4</option>
+              <option value="L5">L5</option>
+              <option value="L6">L6</option>
+              <option value="L7">L7</option>
+              <option value="L8">L8</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="question-label">2. Are you a manager of a team?</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="isManager" value="yes" id="managerYes">
+                Yes
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="isManager" value="no" id="managerNo" checked>
+                No
+              </label>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label class="question-label">3. Are you a Bar Raiser?</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="isBarRaiser" value="yes" id="barRaiserYes">
+                Yes
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="isBarRaiser" value="no" id="barRaiserNo" checked>
+                No
+              </label>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="registerJobFamily">4. What Job Family are you in?</label>
+            <select id="registerJobFamily" required>
+              <option value="">Select your job family...</option>
+              <option value="DCEO">DCEO</option>
+              <option value="Software Development">Software Development</option>
+              <option value="Hardware Engineering">Hardware Engineering</option>
+              <option value="Operations">Operations</option>
+              <option value="Product Management">Product Management</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          
+          <button type="submit" class="btn btn-primary btn-block">Register</button>
+        </form>
+        <p class="auth-switch">Already have an account? <a href="#" id="showLogin">Login</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Application -->
+  <div id="mainApp" style="display: none;">
+    <div class="container">
+      <div class="header">
+        <h1>Interview Pod Sign-up</h1>
+        <div class="user-section">
+          <div class="user-details">
+            <div class="user-name" id="userName"></div>
+            <div class="user-info" id="userInfo"></div>
+          </div>
+          <button id="logoutBtn" class="btn">Logout</button>
+        </div>
+      </div>
+      
+      <div class="controls">
+        <button id="refreshBtn" class="btn">Refresh</button>
+      </div>
+
+      <div id="podsContainer"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+  <div class="container">
+    <h1>Interview Pod Sign-up Sheet</h1>
+    
+    <div class="controls">
+      <button id="refreshBtn" class="btn">Refresh</button>
+      <button id="addPodBtn" class="btn btn-primary">Add New Pod</button>
+    </div>
+
+    <div id="podsContainer"></div>
+  </div>
+
+  <!-- Modal for signing up -->
+  <div id="signupModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Sign Up for Interview Slot</h2>
+      <form id="signupForm">
+        <input type="hidden" id="slotId">
+        <div class="form-group">
+          <label for="interviewerName">Your Name:</label>
+          <input type="text" id="interviewerName" required>
+        </div>
+        <div class="form-group">
+          <label for="interviewerAlias">Your Alias:</label>
+          <input type="text" id="interviewerAlias" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Sign Up</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal for adding pod -->
+  <div id="addPodModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Add New Pod</h2>
+      <form id="addPodForm">
+        <div class="form-group">
+          <label for="podNumber">Pod Number:</label>
+          <input type="number" id="podNumber" required>
+        </div>
+        <div class="form-group">
+          <label for="level">Level:</label>
+          <select id="level" required>
+            <option value="L3">L3 (3 interviewers)</option>
+            <option value="L4">L4 (4 interviewers)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="location">Location:</label>
+          <input type="text" id="location" required>
+        </div>
+        <div class="form-group">
+          <label for="interviewDate">Interview Date:</label>
+          <input type="text" id="interviewDate" placeholder="MM/DD/YYYY" required>
+        </div>
+        <div class="form-group">
+          <label for="timeSlot">Time Slot:</label>
+          <input type="text" id="timeSlot" placeholder="e.g., 1pm-4:30pm" required>
+        </div>
+        <div class="form-group">
+          <label for="timeZone">Time Zone:</label>
+          <select id="timeZone" required>
+            <option value="PT">PT</option>
+            <option value="ET">ET</option>
+            <option value="CT">CT</option>
+            <option value="MT">MT</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="businessPoc">Business POC:</label>
+          <input type="text" id="businessPoc">
+        </div>
+        <button type="submit" class="btn btn-primary">Create Pod</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
