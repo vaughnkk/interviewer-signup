@@ -267,21 +267,44 @@ app.get('/api/pods', verifyToken, (req, res) => {
       slots: pod.slots.filter(slot => {
         if (slot.status === 'filled') return false;
         
+        // Cluster Leaders can sign up for ANY slot
+        if (user.job_family === 'Cluster Leader') return true;
+        
         const slotLevel = slot.required_level;
         const userLevel = user.level;
+        const requiredFamily = slot.required_job_family;
         
+        // Check level requirements
         if (slotLevel.includes('L4+')) {
           if (!['L4', 'L5', 'L6', 'L7', 'L8'].includes(userLevel)) return false;
         } else if (slotLevel.includes('Manager')) {
           if (!user.is_manager) return false;
         }
         
-        const requiredFamily = slot.required_job_family;
-        if (requiredFamily !== 'Any' && !requiredFamily.includes(user.job_family)) {
-          return false;
+        // Check job family requirements
+        if (requiredFamily === 'Any') {
+          return true; // Anyone can fill this slot (if they meet level requirements)
         }
         
-        return true;
+        // Check if slot requires a manager from specific job family
+        if (requiredFamily.includes('Manager')) {
+          // Extract the job family from "DCEO Manager", "ID Manager", etc.
+          const familyPart = requiredFamily.replace(' Manager', '').replace('/Chief Engineer', '');
+          
+          // User must be a manager AND match the job family
+          if (!user.is_manager) return false;
+          if (!familyPart.includes(user.job_family)) return false;
+          
+          return true;
+        }
+        
+        // For non-manager slots, check if user's job family matches
+        // Handle cases like "DCEO" or "DCO" (exact match required)
+        if (requiredFamily === user.job_family) {
+          return true;
+        }
+        
+        return false;
       })
     })).filter(pod => pod.slots.length > 0);
     
@@ -429,4 +452,5 @@ app.put('/api/admin/pods/:id', verifyToken, (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
