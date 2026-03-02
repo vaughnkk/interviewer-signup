@@ -198,11 +198,6 @@ app.get('/api/admin/pods', verifyToken, (req, res) => {
 app.get('/api/pods', verifyToken, (req, res) => {
   const user = req.user;
   
-  // If admin, redirect to admin endpoint
-  if (user.is_admin) {
-    return res.redirect('/api/admin/pods');
-  }
-  
   const query = `
     SELECT p.*, 
            json_group_array(
@@ -373,6 +368,27 @@ app.delete('/api/admin/pods/:id', verifyToken, (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message: 'Pod deleted successfully' });
   });
+});
+
+// Admin: Update pod
+app.put('/api/admin/pods/:id', verifyToken, (req, res) => {
+  const user = req.user;
+  
+  if (!user.is_admin) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  
+  const { id } = req.params;
+  const { pod_number, job_type, level, location, interview_date, time_slot, time_zone, business_poc } = req.body;
+  
+  db.run(
+    `UPDATE pods SET pod_number = ?, job_type = ?, level = ?, location = ?, interview_date = ?, time_slot = ?, time_zone = ?, business_poc = ? WHERE id = ?`,
+    [pod_number, job_type, level, location, interview_date, time_slot, time_zone, business_poc, id],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: 'Pod updated successfully' });
+    }
+  );
 });
 
 app.listen(PORT, '0.0.0.0', () => {
