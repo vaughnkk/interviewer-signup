@@ -220,15 +220,10 @@
     <div class="spreadsheet-container">
       <div class="spreadsheet-header">
         <div class="header-left">
-          <h1>Bulk Add Pods</h1>
-          <p class="spreadsheet-subtitle">Add multiple pods at once</p>
+          <h1>ADD/EDIT PODS</h1>
+          <p class="spreadsheet-subtitle">Create new pods or edit existing ones • <span id="rowCount">0</span> rows</p>
         </div>
         <div class="spreadsheet-actions">
-          <button class="btn" onclick="closeSpreadsheet()">← Back to Management</button>
-          <button class="btn" onclick="addMoreRows()">+ Add 5 More Rows</button>
-          <button id="saveBulkBtn" class="btn btn-primary" onclick="saveBulkPods()">Save All Pods</button>
-        </div>
-      </div>
           <button class="btn" onclick="closeSpreadsheet()">← Back to Pods</button>
           <button class="btn" onclick="addMoreRows()">+ Add 5 More Rows</button>
           <button id="saveBulkBtn" class="btn btn-primary" onclick="saveBulkPods()">Save All Pods</button>
@@ -236,7 +231,7 @@
       </div>
       
       <div class="spreadsheet-instructions">
-        <p><strong>Instructions:</strong> Fill in the table below to create multiple pods at once. Pod #, Location, Date, and Time are required. Empty rows will be ignored.</p>
+        <p><strong>Instructions:</strong> Fill in the table below to create multiple pods at once. Pod #, Location, Date, and Time are required. Empty rows will be ignored. <strong>Tip:</strong> Press Ctrl+S (or Cmd+S) to save quickly.</p>
       </div>
       
       <div class="spreadsheet-scroll">
@@ -251,6 +246,7 @@
               <th>Interview Date *</th>
               <th>Time Slot *</th>
               <th>Time Zone *</th>
+              <th>Debrief Time</th>
               <th>Business POC</th>
               <th>Delete</th>
             </tr>

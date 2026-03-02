@@ -12,6 +12,10 @@ let activeFilters = {
 
 // Check authentication on page load
 document.addEventListener('DOMContentLoaded', () => {
+  // Ensure all views are properly hidden on load
+  document.getElementById('spreadsheetView').style.display = 'none';
+  document.getElementById('podManagementView').style.display = 'none';
+  
   const token = localStorage.getItem('token');
   const user = localStorage.getItem('user');
   
@@ -82,11 +86,15 @@ function setupEventListeners() {
 function showAuthScreen() {
   document.getElementById('authScreen').style.display = 'flex';
   document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('spreadsheetView').style.display = 'none';
+  document.getElementById('podManagementView').style.display = 'none';
 }
 
 function showMainApp() {
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('spreadsheetView').style.display = 'none';
+  document.getElementById('podManagementView').style.display = 'none';
   document.getElementById('userName').textContent = currentUser.name;
   
   let badges = [currentUser.job_family, currentUser.level];
@@ -124,6 +132,17 @@ function showAddPodModal() {
   document.getElementById('mainApp').style.display = 'none';
   document.getElementById('spreadsheetView').style.display = 'block';
   loadPodsIntoSpreadsheet();
+  
+  // Add keyboard shortcut for save (Ctrl+S or Cmd+S)
+  document.addEventListener('keydown', handleSpreadsheetKeyboard);
+}
+
+function handleSpreadsheetKeyboard(e) {
+  // Ctrl+S or Cmd+S to save
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveBulkPods();
+  }
 }
 
 async function loadPodsIntoSpreadsheet() {
@@ -152,6 +171,7 @@ async function loadPodsIntoSpreadsheet() {
       interview_date: pod.interview_date,
       time_slot: pod.time_slot,
       time_zone: pod.time_zone,
+      debrief_time: pod.debrief_time || '',
       business_poc: pod.business_poc || '',
       isExisting: true // Flag to know this is an existing pod
     }));
@@ -185,6 +205,7 @@ function showEditPodModal(pod) {
 function closeSpreadsheet() {
   document.getElementById('spreadsheetView').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
+  document.removeEventListener('keydown', handleSpreadsheetKeyboard);
   loadPods();
 }
 
@@ -209,46 +230,63 @@ function addSpreadsheetRow() {
     interview_date: '',
     time_slot: '',
     time_zone: 'PT',
+    debrief_time: '',
     business_poc: ''
   });
 }
 
 function renderSpreadsheet() {
   const tbody = document.getElementById('spreadsheetBody');
-  tbody.innerHTML = spreadsheetRows.map((row, index) => `
-    <tr>
+  tbody.innerHTML = spreadsheetRows.map((row, index) => {
+    // Check if row is filled (has required fields)
+    const isFilled = row.pod_number && row.location && row.interview_date && row.time_slot;
+    const rowClass = isFilled ? 'row-filled' : 'row-empty';
+    
+    return `
+    <tr class="${rowClass}">
       <td>${index + 1}</td>
-      <td><input type="number" class="sheet-input" data-index="${index}" data-field="pod_number" value="${row.pod_number}" placeholder="Pod #"></td>
+      <td><input type="number" class="sheet-input" data-index="${index}" data-field="pod_number" value="${row.pod_number}" placeholder="Pod #" min="1" tabindex="${index * 9 + 1}"></td>
       <td>
-        <select class="sheet-input" data-index="${index}" data-field="job_type">
+        <select class="sheet-input" data-index="${index}" data-field="job_type" tabindex="${index * 9 + 2}">
           <option value="DCEO" ${row.job_type === 'DCEO' ? 'selected' : ''}>DCEO</option>
           <option value="DCO" ${row.job_type === 'DCO' ? 'selected' : ''}>DCO</option>
           <option value="ID" ${row.job_type === 'ID' ? 'selected' : ''}>ID</option>
         </select>
       </td>
       <td>
-        <select class="sheet-input" data-index="${index}" data-field="level">
+        <select class="sheet-input" data-index="${index}" data-field="level" tabindex="${index * 9 + 3}">
           <option value="L3" ${row.level === 'L3' ? 'selected' : ''}>L3</option>
           <option value="L4" ${row.level === 'L4' ? 'selected' : ''}>L4</option>
         </select>
       </td>
-      <td><input type="text" class="sheet-input" data-index="${index}" data-field="location" value="${row.location}" placeholder="IAD, PDX, etc."></td>
-      <td><input type="text" class="sheet-input" data-index="${index}" data-field="interview_date" value="${row.interview_date}" placeholder="MM/DD/YYYY"></td>
-      <td><input type="text" class="sheet-input" data-index="${index}" data-field="time_slot" value="${row.time_slot}" placeholder="1pm-4pm"></td>
+      <td><input type="text" class="sheet-input" data-index="${index}" data-field="location" value="${row.location}" placeholder="IAD, PDX, etc." tabindex="${index * 9 + 4}"></td>
+      <td><input type="text" class="sheet-input" data-index="${index}" data-field="interview_date" value="${row.interview_date}" placeholder="MM/DD/YYYY" tabindex="${index * 9 + 5}"></td>
+      <td><input type="text" class="sheet-input" data-index="${index}" data-field="time_slot" value="${row.time_slot}" placeholder="1pm-4pm" tabindex="${index * 9 + 6}"></td>
       <td>
-        <select class="sheet-input" data-index="${index}" data-field="time_zone">
+        <select class="sheet-input" data-index="${index}" data-field="time_zone" tabindex="${index * 9 + 7}">
           <option value="PT" ${row.time_zone === 'PT' ? 'selected' : ''}>PT</option>
           <option value="ET" ${row.time_zone === 'ET' ? 'selected' : ''}>ET</option>
           <option value="CT" ${row.time_zone === 'CT' ? 'selected' : ''}>CT</option>
           <option value="MT" ${row.time_zone === 'MT' ? 'selected' : ''}>MT</option>
         </select>
       </td>
-      <td><input type="text" class="sheet-input" data-index="${index}" data-field="business_poc" value="${row.business_poc}" placeholder="name/name"></td>
+      <td><input type="text" class="sheet-input" data-index="${index}" data-field="debrief_time" value="${row.debrief_time || ''}" placeholder="5pm-5:30pm" tabindex="${index * 9 + 8}"></td>
+      <td><input type="text" class="sheet-input" data-index="${index}" data-field="business_poc" value="${row.business_poc}" placeholder="name/name" tabindex="${index * 9 + 9}"></td>
       <td>
-        <button class="btn btn-small btn-danger" onclick="deleteSpreadsheetRow(${index})" title="Delete row">×</button>
+        <button class="btn btn-small btn-danger" onclick="deleteSpreadsheetRow(${index})" title="Delete row" tabindex="${index * 9 + 10}">×</button>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
+  
+  // Update row count and filled count
+  const rowCountElement = document.getElementById('rowCount');
+  if (rowCountElement) {
+    const filledCount = spreadsheetRows.filter(row => 
+      row.pod_number && row.location && row.interview_date && row.time_slot
+    ).length;
+    rowCountElement.textContent = `${spreadsheetRows.length} (${filledCount} filled)`;
+  }
   
   // Attach event listeners
   document.querySelectorAll('.sheet-input').forEach(input => {
@@ -298,6 +336,7 @@ async function saveBulkPods() {
         interview_date: row.interview_date,
         time_slot: row.time_slot,
         time_zone: row.time_zone,
+        debrief_time: row.debrief_time || '',
         business_poc: row.business_poc
       };
       
@@ -668,13 +707,14 @@ function renderPods() {
           <div class="pod-info">
             <span><strong>Location:</strong> ${pod.location}</span>
             <span><strong>Date:</strong> ${pod.interview_date}</span>
-            <span><strong>Time:</strong> ${timeDisplay}</span>
+            <span><strong>Interview:</strong> ${timeDisplay}</span>
+            ${pod.debrief_time ? `<span><strong>Debrief:</strong> ${convertTimeToUserTimezone(pod.debrief_time, pod.time_zone, currentUser.timezone)} ${currentUser.timezone}${currentUser.timezone !== pod.time_zone ? ` <span class="original-time">(${pod.debrief_time} ${pod.time_zone})</span>` : ''}</span>` : ''}
             ${pod.business_poc ? `<span><strong>POC:</strong> ${pod.business_poc}</span>` : ''}
           </div>
           ${adminButtons ? `<div class="admin-actions">${adminButtons}</div>` : ''}
         </div>
         <div class="slots-grid">
-          ${pod.slots.map(slot => renderSlot(slot, isAllPodsView)).join('')}
+          ${pod.slots.map(slot => renderSlot(slot, isAllPodsView, pod)).join('')}
         </div>
       </div>
     `;
@@ -684,26 +724,40 @@ function renderPods() {
   attachSlotEventListeners();
 }
 
-function renderSlot(slot, showAll = false) {
+function renderSlot(slot, showAll = false, pod = null) {
   const isFilled = slot.status === 'filled';
-  const cardClass = isFilled ? 'slot-card filled' : 'slot-card open';
+  const isBarRaiser = slot.is_bar_raiser || slot.required_job_family === 'Bar Raiser';
+  const cardClass = isFilled ? 'slot-card filled' : isBarRaiser ? 'slot-card open bar-raiser-slot' : 'slot-card open';
   
   // Check if current user is eligible for this slot
   const isEligible = checkSlotEligibility(slot);
   
+  // Check if current user is the one who signed up for this slot
+  const isCurrentUserSlot = isFilled && slot.interviewer_alias === currentUser.email;
+  
   return `
     <div class="${cardClass}">
-      <div class="slot-header">Interviewer ${slot.slot_number}</div>
+      <div class="slot-header">${isBarRaiser ? '⭐ Bar Raiser (Debrief Only)' : `Interviewer ${slot.slot_number}`}</div>
       <div class="slot-details">
-        <div><strong>Focus:</strong> ${slot.focus_area}</div>
+        ${!isBarRaiser ? `<div><strong>Focus:</strong> ${slot.focus_area}</div>` : ''}
         <div><strong>LP:</strong> ${slot.leadership_principle}</div>
         <div><strong>Required:</strong> ${slot.required_job_family} (${slot.required_level})</div>
+        ${isBarRaiser ? '<div class="debrief-note">⏰ Attends debrief only, not the interview</div>' : ''}
       </div>
       ${isFilled ? `
         <div class="slot-interviewer">
           <div>✓ ${slot.interviewer_name}</div>
           <div class="interviewer-email">${slot.interviewer_alias}</div>
         </div>
+        ${isCurrentUserSlot && pod ? `
+          <div class="slot-actions">
+            <button class="btn btn-small btn-secondary calendar-btn" 
+                    data-pod='${JSON.stringify(pod).replace(/'/g, "&apos;")}' 
+                    data-slot='${JSON.stringify(slot).replace(/'/g, "&apos;")}'>
+              📅 Add Calendar Placeholder
+            </button>
+          </div>
+        ` : ''}
       ` : isEligible ? `
         <div class="slot-actions">
           <button class="btn btn-small btn-primary signup-btn" data-slot-id="${slot.id}">Sign Up</button>
@@ -726,6 +780,11 @@ function checkSlotEligibility(slot) {
   const slotLevel = slot.required_level;
   const userLevel = currentUser.level;
   const requiredFamily = slot.required_job_family;
+  
+  // Bar Raiser slots - only for Bar Raisers
+  if (requiredFamily === 'Bar Raiser' || slot.is_bar_raiser) {
+    return currentUser.is_bar_raiser;
+  }
   
   // Check level requirements
   if (slotLevel.includes('L4+')) {
@@ -773,6 +832,15 @@ function attachSlotEventListeners() {
       if (confirm('Sign up for this interview slot?')) {
         handleDirectSignup(slotId);
       }
+    });
+  });
+  
+  // Calendar placeholder buttons
+  document.querySelectorAll('.calendar-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const pod = JSON.parse(this.getAttribute('data-pod').replace(/&apos;/g, "'"));
+      const slot = JSON.parse(this.getAttribute('data-slot').replace(/&apos;/g, "'"));
+      downloadCalendarInvite(pod, slot);
     });
   });
   
