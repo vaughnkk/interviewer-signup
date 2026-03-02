@@ -2,6 +2,13 @@ const API_URL = window.location.origin + '/api';
 
 let pods = [];
 let currentUser = null;
+let allPods = []; // Store unfiltered pods
+let activeFilters = {
+  jobType: '',
+  location: '',
+  date: '',
+  urgent: 'all'
+};
 
 // Check authentication on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -38,6 +45,13 @@ function setupEventListeners() {
   
   document.getElementById('logoutBtn').addEventListener('click', handleLogout);
   document.getElementById('refreshBtn').addEventListener('click', loadPods);
+  
+  // Filter listeners
+  document.getElementById('filterJobType').addEventListener('change', handleFilterChange);
+  document.getElementById('filterLocation').addEventListener('change', handleFilterChange);
+  document.getElementById('filterDate').addEventListener('change', handleFilterChange);
+  document.getElementById('filterUrgent').addEventListener('change', handleFilterChange);
+  document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
   
   // Close modals
   document.querySelectorAll('.close').forEach(closeBtn => {
@@ -82,28 +96,34 @@ function showMainApp() {
   
   document.getElementById('userInfo').textContent = `${currentUser.email} | ${badges.join(' | ')}`;
   
-  // Show admin buttons if user is admin
+  // Show "Add New Pod" button only for admins
   if (currentUser.is_admin) {
     document.getElementById('addPodBtn').style.display = 'inline-block';
-    document.getElementById('viewAllBtn').style.display = 'inline-block';
-    
-    // Setup admin button listeners
     document.getElementById('addPodBtn').addEventListener('click', showAddPodModal);
-    document.getElementById('viewAllBtn').addEventListener('click', toggleAdminView);
   }
+  
+  // Show "View All Pods" button for everyone
+  document.getElementById('viewAllBtn').style.display = 'inline-block';
+  document.getElementById('viewAllBtn').addEventListener('click', toggleAllPodsView);
 }
 
-let isAdminView = false;
+let isAllPodsView = false;
 
-function toggleAdminView() {
-  isAdminView = !isAdminView;
+function toggleAllPodsView() {
+  isAllPodsView = !isAllPodsView;
   const btn = document.getElementById('viewAllBtn');
-  btn.textContent = isAdminView ? 'View My Eligible Slots' : 'View All Pods';
+  btn.textContent = isAllPodsView ? 'View My Eligible Slots' : 'View All Pods';
+  
+  // Clear filters when switching views
+  clearFilters();
   loadPods();
 }
 
 function showAddPodModal() {
-  document.getElementById('addPodModal').style.display = 'block';
+  // Hide main app and show spreadsheet view
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('spreadsheetView').style.display = 'block';
+  initializeSpreadsheet();
 }
 
 function showEditPodModal(pod) {
@@ -118,6 +138,159 @@ function showEditPodModal(pod) {
   document.getElementById('editBusinessPoc').value = pod.business_poc || '';
   
   document.getElementById('editPodModal').style.display = 'block';
+}
+
+function closeSpreadsheet() {
+  document.getElementById('spreadsheetView').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+}
+
+let spreadsheetRows = [];
+
+function initializeSpreadsheet() {
+  spreadsheetRows = [];
+  // Add 10 empty rows to start
+  for (let i = 0; i < 10; i++) {
+    addSpreadsheetRow();
+  }
+  renderSpreadsheet();
+}
+
+function addSpreadsheetRow() {
+  spreadsheetRows.push({
+    id: Date.now() + Math.random(),
+    pod_number: '',
+    job_type: 'DCEO',
+    level: 'L3',
+    location: '',
+    interview_date: '',
+    time_slot: '',
+    time_zone: 'PT',
+    business_poc: ''
+  });
+}
+
+function renderSpreadsheet() {
+  const tbody = document.getElementById('spreadsheetBody');
+  tbody.innerHTML = spreadsheetRows.map((row, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td><input type="number" class="sheet-input" data-index="${index}" data-field="pod_number" value="${row.pod_number}" placeholder="Pod #"></td>
+      <td>
+        <select class="sheet-input" data-index="${index}" data-field="job_type">
+          <option value="DCEO" ${row.job_type === 'DCEO' ? 'selected' : ''}>DCEO</option>
+          <option value="DCO" ${row.job_type === 'DCO' ? 'selected' : ''}>DCO</option>
+          <option value="ID" ${row.job_type === 'ID' ? 'selected' : ''}>ID</option>
+        </select>
+      </td>
+      <td>
+        <select class="sheet-input" data-index="${index}" data-field="level">
+          <option value="L3" ${row.level === 'L3' ? 'selected' : ''}>L3</option>
+          <option value="L4" ${row.level === 'L4' ? 'selected' : ''}>L4</option>
+        </select>
+      </td>
+      <td><input type="text" class="sheet-input" data-index="${index}" data-field="location" value="${row.location}" placeholder="IAD, PDX, etc."></td>
+      <td><input type="text" class="sheet-input" data-index="${index}" data-field="interview_date" value="${row.interview_date}" placeholder="MM/DD/YYYY"></td>
+      <td><input type="text" class="sheet-input" data-index="${index}" data-field="time_slot" value="${row.time_slot}" placeholder="1pm-4pm"></td>
+      <td>
+        <select class="sheet-input" data-index="${index}" data-field="time_zone">
+          <option value="PT" ${row.time_zone === 'PT' ? 'selected' : ''}>PT</option>
+          <option value="ET" ${row.time_zone === 'ET' ? 'selected' : ''}>ET</option>
+          <option value="CT" ${row.time_zone === 'CT' ? 'selected' : ''}>CT</option>
+          <option value="MT" ${row.time_zone === 'MT' ? 'selected' : ''}>MT</option>
+        </select>
+      </td>
+      <td><input type="text" class="sheet-input" data-index="${index}" data-field="business_poc" value="${row.business_poc}" placeholder="name/name"></td>
+      <td><button class="btn btn-small btn-danger" onclick="deleteSpreadsheetRow(${index})">×</button></td>
+    </tr>
+  `).join('');
+  
+  // Attach event listeners
+  document.querySelectorAll('.sheet-input').forEach(input => {
+    input.addEventListener('change', handleSpreadsheetChange);
+    input.addEventListener('input', handleSpreadsheetChange);
+  });
+}
+
+function handleSpreadsheetChange(e) {
+  const index = parseInt(e.target.getAttribute('data-index'));
+  const field = e.target.getAttribute('data-field');
+  spreadsheetRows[index][field] = e.target.value;
+}
+
+function deleteSpreadsheetRow(index) {
+  spreadsheetRows.splice(index, 1);
+  renderSpreadsheet();
+}
+
+function addMoreRows() {
+  for (let i = 0; i < 5; i++) {
+    addSpreadsheetRow();
+  }
+  renderSpreadsheet();
+}
+
+async function saveBulkPods() {
+  // Filter out empty rows
+  const validRows = spreadsheetRows.filter(row => 
+    row.pod_number && row.location && row.interview_date && row.time_slot
+  );
+  
+  if (validRows.length === 0) {
+    alert('Please fill in at least one complete row (Pod #, Location, Date, and Time are required)');
+    return;
+  }
+  
+  const confirmMsg = `You are about to create ${validRows.length} pod(s). Continue?`;
+  if (!confirm(confirmMsg)) return;
+  
+  document.getElementById('saveBulkBtn').disabled = true;
+  document.getElementById('saveBulkBtn').textContent = 'Saving...';
+  
+  let successCount = 0;
+  let errorCount = 0;
+  
+  for (const row of validRows) {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/admin/pods`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          pod_number: parseInt(row.pod_number),
+          job_type: row.job_type,
+          level: row.level,
+          location: row.location,
+          interview_date: row.interview_date,
+          time_slot: row.time_slot,
+          time_zone: row.time_zone,
+          business_poc: row.business_poc
+        })
+      });
+      
+      if (response.ok) {
+        successCount++;
+      } else {
+        errorCount++;
+      }
+    } catch (error) {
+      console.error('Error creating pod:', error);
+      errorCount++;
+    }
+  }
+  
+  document.getElementById('saveBulkBtn').disabled = false;
+  document.getElementById('saveBulkBtn').textContent = 'Save All Pods';
+  
+  alert(`Created ${successCount} pod(s) successfully. ${errorCount > 0 ? errorCount + ' failed.' : ''}`);
+  
+  if (successCount > 0) {
+    closeSpreadsheet();
+    loadPods();
+  }
 }
 
 async function handleLogin(e) {
@@ -196,7 +369,8 @@ function handleLogout() {
 async function loadPods() {
   try {
     const token = localStorage.getItem('token');
-    const endpoint = (currentUser.is_admin && isAdminView) ? `${API_URL}/admin/pods` : `${API_URL}/pods`;
+    // If viewing all pods, use all-pods endpoint, otherwise use eligible pods endpoint
+    const endpoint = isAllPodsView ? `${API_URL}/all-pods` : `${API_URL}/pods`;
     
     const response = await fetch(endpoint, {
       headers: {
@@ -209,36 +383,165 @@ async function loadPods() {
       return;
     }
     
-    pods = await response.json();
-    renderPods();
+    allPods = await response.json();
+    populateFilterDropdowns();
+    applyFilters();
   } catch (error) {
     console.error('Error loading pods:', error);
     alert('Failed to load pods. Make sure the backend server is running.');
   }
 }
 
+function populateFilterDropdowns() {
+  // Get unique locations
+  const locations = [...new Set(allPods.map(pod => pod.location))].sort();
+  const locationSelect = document.getElementById('filterLocation');
+  locationSelect.innerHTML = '<option value="">All</option>' + 
+    locations.map(loc => `<option value="${loc}">${loc}</option>`).join('');
+  
+  // Get unique dates
+  const dates = [...new Set(allPods.map(pod => pod.interview_date))].sort((a, b) => {
+    // Sort dates chronologically
+    const dateA = new Date(a);
+    const dateB = new Date(b);
+    return dateA - dateB;
+  });
+  const dateSelect = document.getElementById('filterDate');
+  dateSelect.innerHTML = '<option value="">All</option>' + 
+    dates.map(date => `<option value="${date}">${date}</option>`).join('');
+}
+
+function handleFilterChange(e) {
+  const filterId = e.target.id;
+  if (filterId === 'filterJobType') {
+    activeFilters.jobType = e.target.value;
+  } else if (filterId === 'filterLocation') {
+    activeFilters.location = e.target.value;
+  } else if (filterId === 'filterDate') {
+    activeFilters.date = e.target.value;
+  } else if (filterId === 'filterUrgent') {
+    activeFilters.urgent = e.target.value;
+  }
+  applyFilters();
+}
+
+function clearFilters() {
+  activeFilters = {
+    jobType: '',
+    location: '',
+    date: '',
+    urgent: 'all'
+  };
+  document.getElementById('filterJobType').value = '';
+  document.getElementById('filterLocation').value = '';
+  document.getElementById('filterDate').value = '';
+  document.getElementById('filterUrgent').value = 'all';
+  applyFilters();
+}
+
+function parseDate(dateStr) {
+  // Parse dates in format MM/DD/YYYY or M/D/YYYY
+  const parts = dateStr.split('/');
+  if (parts.length === 3) {
+    return new Date(parts[2], parts[0] - 1, parts[1]);
+  }
+  return new Date(dateStr);
+}
+
+function applyFilters() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  pods = allPods.filter(pod => {
+    // Filter by job type
+    if (activeFilters.jobType && pod.job_type !== activeFilters.jobType) {
+      return false;
+    }
+    
+    // Filter by location
+    if (activeFilters.location && pod.location !== activeFilters.location) {
+      return false;
+    }
+    
+    // Filter by date
+    if (activeFilters.date && pod.interview_date !== activeFilters.date) {
+      return false;
+    }
+    
+    // Filter by urgency
+    if (activeFilters.urgent !== 'all') {
+      const podDate = parseDate(pod.interview_date);
+      const daysDiff = Math.ceil((podDate - today) / (1000 * 60 * 60 * 24));
+      
+      if (activeFilters.urgent === 'urgent' && daysDiff > 7) {
+        return false;
+      }
+      if (activeFilters.urgent === 'critical' && daysDiff > 3) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+  
+  // Sort pods by date (soonest first) - ALWAYS
+  pods.sort((a, b) => {
+    const dateA = parseDate(a.interview_date);
+    const dateB = parseDate(b.interview_date);
+    return dateA - dateB;
+  });
+  
+  renderPods();
+}
+
 function renderPods() {
   const container = document.getElementById('podsContainer');
   
   if (pods.length === 0) {
-    container.innerHTML = '<div class="no-slots"><p>No eligible interview slots available at this time.</p><p>Check back later or contact your coordinator.</p></div>';
+    const hasActiveFilters = activeFilters.jobType || activeFilters.location || activeFilters.date || activeFilters.urgent !== 'all';
+    const message = hasActiveFilters
+      ? '<div class="no-slots"><p>No pods match your current filters.</p><p>Try adjusting or clearing the filters.</p></div>'
+      : isAllPodsView 
+        ? '<div class="no-slots"><p>No pods available at this time.</p></div>'
+        : '<div class="no-slots"><p>No eligible interview slots available at this time.</p><p>Check back later or contact your coordinator.</p></div>';
+    container.innerHTML = message;
     return;
   }
   
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
   container.innerHTML = pods.map(pod => {
     const locationCode = pod.location.split('-')[0].split(' ')[0].toUpperCase();
-    const adminButtons = (currentUser.is_admin && isAdminView) ? `
+    
+    // Calculate urgency
+    const podDate = parseDate(pod.interview_date);
+    const daysDiff = Math.ceil((podDate - today) / (1000 * 60 * 60 * 24));
+    let urgencyBadge = '';
+    let urgencyClass = '';
+    
+    if (daysDiff <= 3 && daysDiff >= 0) {
+      urgencyBadge = '<span class="urgency-badge critical">CRITICAL - ' + daysDiff + ' days</span>';
+      urgencyClass = 'pod-critical';
+    } else if (daysDiff <= 7 && daysDiff >= 0) {
+      urgencyBadge = '<span class="urgency-badge urgent">URGENT - ' + daysDiff + ' days</span>';
+      urgencyClass = 'pod-urgent';
+    }
+    
+    // Only show admin buttons (Edit/Delete) for admins in all pods view
+    const adminButtons = (currentUser.is_admin && isAllPodsView) ? `
       <button class="btn btn-small edit-pod-btn" data-pod='${JSON.stringify(pod).replace(/'/g, "&apos;")}'>Edit</button>
       <button class="btn btn-small btn-danger delete-pod-btn" data-pod-id="${pod.id}">Delete</button>
     ` : '';
     
     return `
-      <div class="pod-card">
+      <div class="pod-card ${urgencyClass}">
         <div class="pod-header">
           <h2>
             ${locationCode}-${pod.pod_number}
             <span class="job-type-badge">${pod.job_type}</span>
             <span class="level-badge ${pod.level.toLowerCase()}">${pod.level}</span>
+            ${urgencyBadge}
           </h2>
           <div class="pod-info">
             <span><strong>Location:</strong> ${pod.location}</span>
@@ -249,7 +552,7 @@ function renderPods() {
           ${adminButtons ? `<div class="admin-actions">${adminButtons}</div>` : ''}
         </div>
         <div class="slots-grid">
-          ${pod.slots.map(slot => renderSlot(slot, isAdminView)).join('')}
+          ${pod.slots.map(slot => renderSlot(slot, isAllPodsView)).join('')}
         </div>
       </div>
     `;
@@ -263,8 +566,8 @@ function renderSlot(slot, showAll = false) {
   const isFilled = slot.status === 'filled';
   const cardClass = isFilled ? 'slot-card filled' : 'slot-card open';
   
-  // In admin view, show all slots. In regular view, only show open slots
-  if (!showAll && isFilled) return '';
+  // In "View All Pods" mode, show all slots (filled and open)
+  // In regular view, only show open slots that user is eligible for
   
   return `
     <div class="${cardClass}">
