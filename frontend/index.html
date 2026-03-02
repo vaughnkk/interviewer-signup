@@ -94,11 +94,10 @@
             <select id="registerJobFamily" required>
               <option value="">Select your job family...</option>
               <option value="DCEO">DCEO</option>
-              <option value="Software Development">Software Development</option>
-              <option value="Hardware Engineering">Hardware Engineering</option>
-              <option value="Operations">Operations</option>
-              <option value="Product Management">Product Management</option>
-              <option value="Other">Other</option>
+              <option value="DCO">DCO</option>
+              <option value="ID">ID</option>
+              <option value="Recruiting">Recruiting (Admin)</option>
+              <option value="Cluster Leader">Cluster Leader (Admin)</option>
             </select>
           </div>
           
@@ -125,89 +124,11 @@
       
       <div class="controls">
         <button id="refreshBtn" class="btn">Refresh</button>
+        <button id="addPodBtn" class="btn btn-primary" style="display: none;">Add New Pod</button>
+        <button id="viewAllBtn" class="btn" style="display: none;">View All Pods</button>
       </div>
 
       <div id="podsContainer"></div>
-    </div>
-  </div>
-
-  <script src="app.js"></script>
-</body>
-  <div class="container">
-    <h1>Interview Pod Sign-up Sheet</h1>
-    
-    <div class="controls">
-      <button id="refreshBtn" class="btn">Refresh</button>
-      <button id="addPodBtn" class="btn btn-primary">Add New Pod</button>
-    </div>
-
-    <div id="podsContainer"></div>
-  </div>
-
-  <!-- Modal for signing up -->
-  <div id="signupModal" class="modal">
-    <div class="modal-content">
-      <span class="close">&times;</span>
-      <h2>Sign Up for Interview Slot</h2>
-      <form id="signupForm">
-        <input type="hidden" id="slotId">
-        <div class="form-group">
-          <label for="interviewerName">Your Name:</label>
-          <input type="text" id="interviewerName" required>
-        </div>
-        <div class="form-group">
-          <label for="interviewerAlias">Your Alias:</label>
-          <input type="text" id="interviewerAlias" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Sign Up</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Modal for adding pod -->
-  <div id="addPodModal" class="modal">
-    <div class="modal-content">
-      <span class="close">&times;</span>
-      <h2>Add New Pod</h2>
-      <form id="addPodForm">
-        <div class="form-group">
-          <label for="podNumber">Pod Number:</label>
-          <input type="number" id="podNumber" required>
-        </div>
-        <div class="form-group">
-          <label for="level">Level:</label>
-          <select id="level" required>
-            <option value="L3">L3 (3 interviewers)</option>
-            <option value="L4">L4 (4 interviewers)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="location">Location:</label>
-          <input type="text" id="location" required>
-        </div>
-        <div class="form-group">
-          <label for="interviewDate">Interview Date:</label>
-          <input type="text" id="interviewDate" placeholder="MM/DD/YYYY" required>
-        </div>
-        <div class="form-group">
-          <label for="timeSlot">Time Slot:</label>
-          <input type="text" id="timeSlot" placeholder="e.g., 1pm-4:30pm" required>
-        </div>
-        <div class="form-group">
-          <label for="timeZone">Time Zone:</label>
-          <select id="timeZone" required>
-            <option value="PT">PT</option>
-            <option value="ET">ET</option>
-            <option value="CT">CT</option>
-            <option value="MT">MT</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="businessPoc">Business POC:</label>
-          <input type="text" id="businessPoc">
-        </div>
-        <button type="submit" class="btn btn-primary">Create Pod</button>
-      </form>
     </div>
   </div>
 
