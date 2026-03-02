@@ -27,6 +27,7 @@ db.serialize(() => {
     interview_date TEXT NOT NULL,
     time_slot TEXT NOT NULL,
     time_zone TEXT NOT NULL,
+    debrief_time TEXT,
     business_poc TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -39,6 +40,7 @@ db.serialize(() => {
     leadership_principle TEXT NOT NULL,
     required_job_family TEXT,
     required_level TEXT,
+    is_bar_raiser BOOLEAN DEFAULT 0,
     interviewer_name TEXT,
     interviewer_alias TEXT,
     status TEXT DEFAULT 'open' CHECK(status IN ('open', 'filled')),
@@ -66,24 +68,24 @@ db.serialize(() => {
       console.log('Seeding database...');
       
       const samplePods = [
-        { pod_number: 110, job_type: 'DCEO', level: 'L3', location: 'IAD', interview_date: '4/2/2026', time_slot: '1am-12pm', time_zone: 'PT', business_poc: 'umeh/castroleo' },
-        { pod_number: 38, job_type: 'DCO', level: 'L4', location: 'PDX', interview_date: '4/2/2026', time_slot: '1pm-4:30pm', time_zone: 'PT', business_poc: 'umeh/castroleo' },
-        { pod_number: 40, job_type: 'ID', level: 'L3', location: 'IAD - Core', interview_date: '4/1/2026', time_slot: '8:30am - 11:15 am', time_zone: 'ET', business_poc: 'leonle/noire' }
+        { pod_number: 110, job_type: 'DCEO', level: 'L3', location: 'IAD', interview_date: '4/2/2026', time_slot: '1am-12pm', time_zone: 'PT', debrief_time: '12:30pm-1pm', business_poc: 'umeh/castroleo' },
+        { pod_number: 38, job_type: 'DCO', level: 'L4', location: 'PDX', interview_date: '4/2/2026', time_slot: '1pm-4:30pm', time_zone: 'PT', debrief_time: '5pm-5:30pm', business_poc: 'umeh/castroleo' },
+        { pod_number: 40, job_type: 'ID', level: 'L3', location: 'IAD - Core', interview_date: '4/1/2026', time_slot: '8:30am - 11:15 am', time_zone: 'ET', debrief_time: '11:30am-12pm', business_poc: 'leonle/noire' }
       ];
       
       samplePods.forEach(pod => {
-        db.run(`INSERT INTO pods (pod_number, job_type, level, location, interview_date, time_slot, time_zone, business_poc) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [pod.pod_number, pod.job_type, pod.level, pod.location, pod.interview_date, pod.time_slot, pod.time_zone, pod.business_poc],
+        db.run(`INSERT INTO pods (pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_time, business_poc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [pod.pod_number, pod.job_type, pod.level, pod.location, pod.interview_date, pod.time_slot, pod.time_zone, pod.debrief_time, pod.business_poc],
           function(err) {
             if (!err) {
               const podId = this.lastID;
               const slots = getSlotDefinitions(pod.job_type, pod.level);
-              const numSlots = pod.level === 'L3' ? 3 : 4;
+              const numSlots = pod.level === 'L3' ? 3 : 5; // L3 has 3 interviewers, L4 has 4 interviewers + 1 Bar Raiser
               
               slots.forEach((slot, index) => {
                 if (index < numSlots) {
-                  db.run(`INSERT INTO interview_slots (pod_id, slot_number, focus_area, leadership_principle, required_job_family, required_level) VALUES (?, ?, ?, ?, ?, ?)`,
-                    [podId, index + 1, slot.focus_area, slot.leadership_principle, slot.required_job_family, slot.required_level]);
+                  db.run(`INSERT INTO interview_slots (pod_id, slot_number, focus_area, leadership_principle, required_job_family, required_level, is_bar_raiser) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                    [podId, index + 1, slot.focus_area, slot.leadership_principle, slot.required_job_family, slot.required_level, slot.is_bar_raiser ? 1 : 0]);
                 }
               });
             }
@@ -369,41 +371,44 @@ function getSlotDefinitions(jobType, level) {
   const definitions = {
     'DCEO': {
       'L3': [
-        { focus_area: 'Electrical', leadership_principle: 'Bias for Action', required_job_family: 'DCEO Manager/Chief Engineer', required_level: 'Manager+' },
-        { focus_area: 'Any', leadership_principle: 'Customer Obsession/Dive Deep', required_job_family: 'Any', required_level: 'L4+' },
-        { focus_area: 'Mechanical', leadership_principle: 'Learn & Be Curious', required_job_family: 'DCEO', required_level: 'L4+' }
+        { focus_area: 'Electrical', leadership_principle: 'Bias for Action', required_job_family: 'DCEO Manager/Chief Engineer', required_level: 'Manager+', is_bar_raiser: false },
+        { focus_area: 'Any', leadership_principle: 'Customer Obsession/Dive Deep', required_job_family: 'Any', required_level: 'L4+', is_bar_raiser: false },
+        { focus_area: 'Mechanical', leadership_principle: 'Learn & Be Curious', required_job_family: 'DCEO', required_level: 'L4+', is_bar_raiser: false }
       ],
       'L4': [
-        { focus_area: 'Electrical', leadership_principle: 'Bias for Action', required_job_family: 'DCEO Manager', required_level: 'Manager' },
-        { focus_area: 'Any', leadership_principle: 'Customer Obsession/Dive Deep', required_job_family: 'Any', required_level: 'L4+' },
-        { focus_area: 'Mechanical', leadership_principle: 'Learn & Be Curious', required_job_family: 'DCEO', required_level: 'L4+' },
-        { focus_area: 'Any', leadership_principle: 'Insist on the Highest Standards/Deliver Results', required_job_family: 'Any', required_level: 'L4+' }
+        { focus_area: 'Electrical', leadership_principle: 'Bias for Action', required_job_family: 'DCEO Manager', required_level: 'Manager', is_bar_raiser: false },
+        { focus_area: 'Any', leadership_principle: 'Customer Obsession/Dive Deep', required_job_family: 'Any', required_level: 'L4+', is_bar_raiser: false },
+        { focus_area: 'Mechanical', leadership_principle: 'Learn & Be Curious', required_job_family: 'DCEO', required_level: 'L4+', is_bar_raiser: false },
+        { focus_area: 'Any', leadership_principle: 'Insist on the Highest Standards/Deliver Results', required_job_family: 'Any', required_level: 'L4+', is_bar_raiser: false },
+        { focus_area: 'Debrief Only', leadership_principle: 'Bar Raiser', required_job_family: 'Bar Raiser', required_level: 'L4+', is_bar_raiser: true }
       ]
     },
     'ID': {
       'L3': [
-        { focus_area: 'Tech', leadership_principle: 'Earn Trust', required_job_family: 'ID Manager', required_level: 'Manager' },
-        { focus_area: 'Any', leadership_principle: 'Bias for Action/Customer Obsession', required_job_family: 'Any', required_level: 'L4+' },
-        { focus_area: 'Any', leadership_principle: 'Learn & Be Curious/Deliver Results', required_job_family: 'Any', required_level: 'L4+' }
+        { focus_area: 'Tech', leadership_principle: 'Earn Trust', required_job_family: 'ID Manager', required_level: 'Manager', is_bar_raiser: false },
+        { focus_area: 'Any', leadership_principle: 'Bias for Action/Customer Obsession', required_job_family: 'Any', required_level: 'L4+', is_bar_raiser: false },
+        { focus_area: 'Any', leadership_principle: 'Learn & Be Curious/Deliver Results', required_job_family: 'Any', required_level: 'L4+', is_bar_raiser: false }
       ],
       'L4': [
-        { focus_area: 'Tech', leadership_principle: 'Earn Trust', required_job_family: 'ID Manager', required_level: 'Manager' },
-        { focus_area: 'Any', leadership_principle: 'Bias for Action/Customer Obsession', required_job_family: 'Any', required_level: 'L4+' },
-        { focus_area: 'Any', leadership_principle: 'Learn & Be Curious/Deliver Results', required_job_family: 'Any', required_level: 'L4+' },
-        { focus_area: 'Any', leadership_principle: 'Ownership/Have Backbone Disagree & Commit', required_job_family: 'Any', required_level: 'L4+' }
+        { focus_area: 'Tech', leadership_principle: 'Earn Trust', required_job_family: 'ID Manager', required_level: 'Manager', is_bar_raiser: false },
+        { focus_area: 'Any', leadership_principle: 'Bias for Action/Customer Obsession', required_job_family: 'Any', required_level: 'L4+', is_bar_raiser: false },
+        { focus_area: 'Any', leadership_principle: 'Learn & Be Curious/Deliver Results', required_job_family: 'Any', required_level: 'L4+', is_bar_raiser: false },
+        { focus_area: 'Any', leadership_principle: 'Ownership/Have Backbone Disagree & Commit', required_job_family: 'Any', required_level: 'L4+', is_bar_raiser: false },
+        { focus_area: 'Debrief Only', leadership_principle: 'Bar Raiser', required_job_family: 'Bar Raiser', required_level: 'L4+', is_bar_raiser: true }
       ]
     },
     'DCO': {
       'L3': [
-        { focus_area: 'Ownership', leadership_principle: 'Insist on the Highest Standards', required_job_family: 'DCO Manager', required_level: 'Manager' },
-        { focus_area: 'Hardware Troubleshooting + Networking', leadership_principle: 'Hardware Troubleshooting + Networking', required_job_family: 'DCO', required_level: 'L4+' },
-        { focus_area: 'Any', leadership_principle: 'Customer Obsession/Learn And Be Curious', required_job_family: 'Any', required_level: 'L4+' }
+        { focus_area: 'Ownership', leadership_principle: 'Insist on the Highest Standards', required_job_family: 'DCO Manager', required_level: 'Manager', is_bar_raiser: false },
+        { focus_area: 'Hardware Troubleshooting + Networking', leadership_principle: 'Hardware Troubleshooting + Networking', required_job_family: 'DCO', required_level: 'L4+', is_bar_raiser: false },
+        { focus_area: 'Any', leadership_principle: 'Customer Obsession/Learn And Be Curious', required_job_family: 'Any', required_level: 'L4+', is_bar_raiser: false }
       ],
       'L4': [
-        { focus_area: 'Ownership', leadership_principle: 'Insist on the Highest Standards', required_job_family: 'DCO Manager', required_level: 'Manager' },
-        { focus_area: 'Hardware Troubleshooting + Networking', leadership_principle: 'Hardware Troubleshooting + Networking', required_job_family: 'DCO', required_level: 'L4+' },
-        { focus_area: 'Any', leadership_principle: 'Customer Obsession/Learn And Be Curious', required_job_family: 'Any', required_level: 'L4+' },
-        { focus_area: 'Any', leadership_principle: 'Earn Trust/Deliver Results', required_job_family: 'Any', required_level: 'L4+' }
+        { focus_area: 'Ownership', leadership_principle: 'Insist on the Highest Standards', required_job_family: 'DCO Manager', required_level: 'Manager', is_bar_raiser: false },
+        { focus_area: 'Hardware Troubleshooting + Networking', leadership_principle: 'Hardware Troubleshooting + Networking', required_job_family: 'DCO', required_level: 'L4+', is_bar_raiser: false },
+        { focus_area: 'Any', leadership_principle: 'Customer Obsession/Learn And Be Curious', required_job_family: 'Any', required_level: 'L4+', is_bar_raiser: false },
+        { focus_area: 'Any', leadership_principle: 'Earn Trust/Deliver Results', required_job_family: 'Any', required_level: 'L4+', is_bar_raiser: false },
+        { focus_area: 'Debrief Only', leadership_principle: 'Bar Raiser', required_job_family: 'Bar Raiser', required_level: 'L4+', is_bar_raiser: true }
       ]
     }
   };
@@ -419,27 +424,27 @@ app.post('/api/admin/pods', verifyToken, (req, res) => {
     return res.status(403).json({ error: 'Admin access required' });
   }
   
-  const { pod_number, job_type, level, location, interview_date, time_slot, time_zone, business_poc } = req.body;
+  const { pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_time, business_poc } = req.body;
   
   db.run(
-    `INSERT INTO pods (pod_number, job_type, level, location, interview_date, time_slot, time_zone, business_poc)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [pod_number, job_type, level, location, interview_date, time_slot, time_zone, business_poc],
+    `INSERT INTO pods (pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_time, business_poc)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_time, business_poc],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       
       const podId = this.lastID;
-      const numSlots = level === 'L3' ? 3 : 4;
+      const numSlots = level === 'L3' ? 3 : 5; // L3 has 3 interviewers, L4 has 4 interviewers + 1 Bar Raiser
       const slots = getSlotDefinitions(job_type, level);
       
       const stmt = db.prepare(`
-        INSERT INTO interview_slots (pod_id, slot_number, focus_area, leadership_principle, required_job_family, required_level)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO interview_slots (pod_id, slot_number, focus_area, leadership_principle, required_job_family, required_level, is_bar_raiser)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
       
       slots.forEach((slot, index) => {
         if (index < numSlots) {
-          stmt.run(podId, index + 1, slot.focus_area, slot.leadership_principle, slot.required_job_family, slot.required_level);
+          stmt.run(podId, index + 1, slot.focus_area, slot.leadership_principle, slot.required_job_family, slot.required_level, slot.is_bar_raiser ? 1 : 0);
         }
       });
       
@@ -474,11 +479,11 @@ app.put('/api/admin/pods/:id', verifyToken, (req, res) => {
   }
   
   const { id } = req.params;
-  const { pod_number, job_type, level, location, interview_date, time_slot, time_zone, business_poc } = req.body;
+  const { pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_time, business_poc } = req.body;
   
   db.run(
-    `UPDATE pods SET pod_number = ?, job_type = ?, level = ?, location = ?, interview_date = ?, time_slot = ?, time_zone = ?, business_poc = ? WHERE id = ?`,
-    [pod_number, job_type, level, location, interview_date, time_slot, time_zone, business_poc, id],
+    `UPDATE pods SET pod_number = ?, job_type = ?, level = ?, location = ?, interview_date = ?, time_slot = ?, time_zone = ?, debrief_time = ?, business_poc = ? WHERE id = ?`,
+    [pod_number, job_type, level, location, interview_date, time_slot, time_zone, debrief_time, business_poc, id],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message: 'Pod updated successfully' });
