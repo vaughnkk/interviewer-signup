@@ -422,7 +422,7 @@ app.post('/api/slots/:id/signup', verifyToken, (req, res) => {
       SELECT 
         s.*,
         p.pod_number, p.job_type, p.level, p.location, 
-        p.interview_date, p.time_slot, p.time_zone, p.business_poc
+        p.interview_date, p.time_slot, p.time_zone, p.debrief_date, p.debrief_time, p.business_poc
       FROM interview_slots s
       JOIN pods p ON s.pod_id = p.id
       WHERE s.id = ?
@@ -447,6 +447,8 @@ app.post('/api/slots/:id/signup', verifyToken, (req, res) => {
               interview_date: slotData.interview_date,
               time_slot: slotData.time_slot,
               time_zone: slotData.time_zone,
+              debrief_date: slotData.debrief_date,
+              debrief_time: slotData.debrief_time,
               business_poc: slotData.business_poc
             },
             slot: {
