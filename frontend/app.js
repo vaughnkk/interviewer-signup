@@ -175,6 +175,7 @@ async function loadPodsIntoSpreadsheet() {
       debrief_date: pod.debrief_date || '',
       debrief_time: pod.debrief_time || '',
       business_poc: pod.business_poc || '',
+      slots: pod.slots || [], // Include slots data
       isExisting: true // Flag to know this is an existing pod
     }));
     
@@ -238,6 +239,28 @@ function addSpreadsheetRow() {
   });
 }
 
+function getSlotDisplay(row, slotIndex) {
+  // If row doesn't have slots data or is empty, return dash
+  if (!row.slots || row.slots.length === 0 || !row.pod_number) {
+    return '-';
+  }
+  
+  // Check if this slot index exists for this pod
+  if (slotIndex >= row.slots.length) {
+    return '-';
+  }
+  
+  const slot = row.slots[slotIndex];
+  
+  // If slot is filled, show the user's alias
+  if (slot.interviewer_alias) {
+    return slot.interviewer_alias;
+  }
+  
+  // Otherwise show "Open"
+  return 'Open';
+}
+
 function renderSpreadsheet() {
   const tbody = document.getElementById('spreadsheetBody');
   tbody.innerHTML = spreadsheetRows.map((row, index) => {
@@ -276,6 +299,11 @@ function renderSpreadsheet() {
       <td><input type="text" class="sheet-input" data-index="${index}" data-field="debrief_date" value="${row.debrief_date || ''}" placeholder="MM/DD/YYYY" tabindex="${index * 9 + 8}"></td>
       <td><input type="text" class="sheet-input" data-index="${index}" data-field="debrief_time" value="${row.debrief_time || ''}" placeholder="5pm-5:30pm" tabindex="${index * 9 + 9}"></td>
       <td><input type="text" class="sheet-input" data-index="${index}" data-field="business_poc" value="${row.business_poc}" placeholder="name/name" tabindex="${index * 9 + 10}"></td>
+      <td class="slot-cell">${getSlotDisplay(row, 0)}</td>
+      <td class="slot-cell">${getSlotDisplay(row, 1)}</td>
+      <td class="slot-cell">${getSlotDisplay(row, 2)}</td>
+      <td class="slot-cell">${getSlotDisplay(row, 3)}</td>
+      <td class="slot-cell">${getSlotDisplay(row, 4)}</td>
       <td>
         <button class="btn btn-small btn-danger" onclick="deleteSpreadsheetRow(${index})" title="Delete row" tabindex="${index * 9 + 11}">×</button>
       </td>
@@ -703,6 +731,9 @@ function renderPods() {
     return `
       <div class="pod-card ${urgencyClass}">
         <div class="pod-header">
+          <div class="pod-date-header">
+            <span class="interview-date-large">📅 ${pod.interview_date}</span>
+          </div>
           <h2>
             ${locationCode}-${pod.pod_number}
             <span class="job-type-badge">${pod.job_type}</span>
@@ -711,7 +742,6 @@ function renderPods() {
           </h2>
           <div class="pod-info">
             <span><strong>Location:</strong> ${pod.location}</span>
-            <span><strong>Interview Date:</strong> ${pod.interview_date}</span>
             <span><strong>Interview Time:</strong> ${timeDisplay}</span>
             ${pod.debrief_date || pod.debrief_time ? `<span><strong>Debrief:</strong> ${pod.debrief_date || pod.interview_date} at ${pod.debrief_time ? convertTimeToUserTimezone(pod.debrief_time, pod.time_zone, currentUser.timezone) + ' ' + currentUser.timezone : 'TBD'}${pod.debrief_time && currentUser.timezone !== pod.time_zone ? ` <span class="original-time">(${pod.debrief_time} ${pod.time_zone})</span>` : ''}</span>` : ''}
             ${pod.business_poc ? `<span><strong>POC:</strong> ${pod.business_poc}</span>` : ''}

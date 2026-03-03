@@ -419,6 +419,20 @@ body {
   border-bottom: 2px solid var(--border-color);
 }
 
+.pod-date-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.interview-date-large {
+  display: inline-block;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary-color);
+  letter-spacing: 0.5px;
+}
+
 .pod-header h2 {
   color: var(--text-primary);
   font-size: 20px;
@@ -1227,6 +1241,55 @@ body {
 .spreadsheet-table td:nth-child(11) {
   width: 150px;
   min-width: 150px;
+}
+
+.spreadsheet-table th:nth-child(12),
+.spreadsheet-table td:nth-child(12) {
+  width: 100px;
+  min-width: 100px;
+}
+
+.spreadsheet-table th:nth-child(13),
+.spreadsheet-table td:nth-child(13) {
+  width: 100px;
+  min-width: 100px;
+}
+
+.spreadsheet-table th:nth-child(14),
+.spreadsheet-table td:nth-child(14) {
+  width: 100px;
+  min-width: 100px;
+}
+
+.spreadsheet-table th:nth-child(15),
+.spreadsheet-table td:nth-child(15) {
+  width: 100px;
+  min-width: 100px;
+}
+
+.spreadsheet-table th:nth-child(16),
+.spreadsheet-table td:nth-child(16) {
+  width: 110px;
+  min-width: 110px;
+}
+
+.spreadsheet-table th:nth-child(17),
+.spreadsheet-table td:nth-child(17) {
+  width: 70px;
+  min-width: 70px;
+  text-align: center;
+}
+
+.slot-cell {
+  background-color: #f8f9fa;
+  text-align: center;
+  font-size: 0.9em;
+  color: #495057;
+  font-weight: 500;
+}
+
+.spreadsheet-table tr:hover .slot-cell {
+  background-color: #e9ecef;
 }
 
 .spreadsheet-table th:nth-child(12),
