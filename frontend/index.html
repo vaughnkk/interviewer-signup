@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AIS Interviewer POD Sign Up</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <!-- Authentication Screen -->
@@ -229,13 +230,16 @@
         </div>
         <div class="spreadsheet-actions">
           <button class="btn" onclick="closeSpreadsheet()">← Back to Pods</button>
+          <button class="btn" onclick="downloadExcelTemplate()">📥 Download Template</button>
+          <button class="btn" onclick="document.getElementById('excelUpload').click()">📤 Upload Excel</button>
+          <input type="file" id="excelUpload" accept=".xlsx,.xls,.csv" style="display: none;" onchange="handleExcelUpload(event)">
           <button class="btn" onclick="addMoreRows()">+ Add 5 More Rows</button>
           <button id="saveBulkBtn" class="btn btn-primary" onclick="saveBulkPods()">Save All Pods</button>
         </div>
       </div>
       
       <div class="spreadsheet-instructions">
-        <p><strong>Instructions:</strong> Fill in the table below to create multiple pods at once. Pod #, Location, Date, and Time are required. Empty rows will be ignored. <strong>Tip:</strong> Press Ctrl+S (or Cmd+S) to save quickly.</p>
+        <p><strong>Instructions:</strong> Fill in the table below to create multiple pods at once. Pod #, Location, Date, and Time are required. Empty rows will be ignored. <strong>Tip:</strong> Press Ctrl+S (or Cmd+S) to save quickly. You can also upload an Excel file to populate the table.</p>
       </div>
       
       <div class="spreadsheet-scroll">

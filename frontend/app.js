@@ -345,6 +345,164 @@ function addMoreRows() {
   renderSpreadsheet();
 }
 
+function handleExcelUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      
+      // Get the first sheet
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      
+      // Convert to JSON
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      
+      if (jsonData.length < 2) {
+        alert('Excel file appears to be empty or has no data rows.');
+        return;
+      }
+      
+      // Get headers (first row)
+      const headers = jsonData[0].map(h => String(h).toLowerCase().trim());
+      
+      // Map column names to our field names
+      const columnMap = {
+        'pod number': 'pod_number',
+        'pod #': 'pod_number',
+        'pod': 'pod_number',
+        'job type': 'job_type',
+        'type': 'job_type',
+        'level': 'level',
+        'location': 'location',
+        'interview date': 'interview_date',
+        'date': 'interview_date',
+        'time slot': 'time_slot',
+        'time': 'time_slot',
+        'interview time': 'time_slot',
+        'time zone': 'time_zone',
+        'timezone': 'time_zone',
+        'tz': 'time_zone',
+        'debrief date': 'debrief_date',
+        'debrief time': 'debrief_time',
+        'business poc': 'business_poc',
+        'poc': 'business_poc'
+      };
+      
+      // Clear existing rows and add new ones from Excel
+      spreadsheetRows = [];
+      
+      // Process data rows (skip header row)
+      for (let i = 1; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (!row || row.length === 0) continue;
+        
+        const newRow = {
+          pod_number: '',
+          job_type: 'DCEO',
+          level: 'L3',
+          location: '',
+          interview_date: '',
+          time_slot: '',
+          time_zone: 'PT',
+          debrief_date: '',
+          debrief_time: '',
+          business_poc: ''
+        };
+        
+        // Map each column to our fields
+        headers.forEach((header, index) => {
+          const fieldName = columnMap[header];
+          if (fieldName && row[index] !== undefined && row[index] !== null && row[index] !== '') {
+            let value = String(row[index]).trim();
+            
+            // Handle specific field validations
+            if (fieldName === 'job_type') {
+              value = value.toUpperCase();
+              if (!['DCEO', 'DCO', 'ID'].includes(value)) {
+                value = 'DCEO'; // Default
+              }
+            } else if (fieldName === 'level') {
+              value = value.toUpperCase();
+              if (!['L3', 'L4'].includes(value)) {
+                value = 'L3'; // Default
+              }
+            } else if (fieldName === 'time_zone') {
+              value = value.toUpperCase();
+              if (!['PT', 'ET', 'CT', 'MT'].includes(value)) {
+                value = 'PT'; // Default
+              }
+            }
+            
+            newRow[fieldName] = value;
+          }
+        });
+        
+        // Only add row if it has at least a pod number
+        if (newRow.pod_number) {
+          spreadsheetRows.push(newRow);
+        }
+      }
+      
+      // Add some empty rows at the end
+      for (let i = 0; i < 5; i++) {
+        addSpreadsheetRow();
+      }
+      
+      renderSpreadsheet();
+      
+      alert(`Successfully imported ${spreadsheetRows.length - 5} pods from Excel file!`);
+      
+    } catch (error) {
+      console.error('Error parsing Excel file:', error);
+      alert('Error reading Excel file. Please make sure it\'s a valid Excel file with the correct format.');
+    }
+  };
+  
+  reader.readAsArrayBuffer(file);
+  
+  // Reset the file input so the same file can be uploaded again
+  event.target.value = '';
+}
+
+function downloadExcelTemplate() {
+  // Create a sample template with headers and example data
+  const templateData = [
+    ['Pod Number', 'Job Type', 'Level', 'Location', 'Interview Date', 'Time Slot', 'Time Zone', 'Debrief Date', 'Debrief Time', 'Business POC'],
+    [1, 'DCEO', 'L3', 'IAD', '03/15/2026', '1pm-4pm', 'ET', '03/15/2026', '4:30pm-5pm', 'John/Jane'],
+    [2, 'DCO', 'L4', 'PDX', '03/20/2026', '9am-12pm', 'PT', '03/20/2026', '1pm-1:30pm', 'Alice/Bob'],
+    [3, 'ID', 'L3', 'DFW', '03/25/2026', '2pm-5pm', 'CT', '03/25/2026', '5:30pm-6pm', 'Charlie/Dana']
+  ];
+  
+  // Create workbook and worksheet
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(templateData);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 12 }, // Pod Number
+    { wch: 10 }, // Job Type
+    { wch: 8 },  // Level
+    { wch: 12 }, // Location
+    { wch: 15 }, // Interview Date
+    { wch: 15 }, // Time Slot
+    { wch: 12 }, // Time Zone
+    { wch: 15 }, // Debrief Date
+    { wch: 15 }, // Debrief Time
+    { wch: 15 }  // Business POC
+  ];
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Pod Template');
+  
+  // Generate and download the file
+  XLSX.writeFile(wb, 'Pod_Upload_Template.xlsx');
+}
+
 async function saveBulkPods() {
   const token = localStorage.getItem('token');
   let successCount = 0;
