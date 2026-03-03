@@ -430,35 +430,73 @@ app.post('/api/slots/:id/signup', verifyToken, (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!slotData) return res.status(404).json({ error: 'Slot not found' });
       
-      db.run(`UPDATE interview_slots SET interviewer_name = ?, interviewer_alias = ?, status = 'filled' WHERE id = ?`,
-        [interviewer.name, interviewer.email, id],
-        function(err) {
-          if (err) return res.status(500).json({ error: err.message });
+      // Check for time conflicts with existing commitments
+      const conflictQuery = `
+        SELECT 
+          p.pod_number, p.location, p.interview_date, p.time_slot, p.debrief_date, p.debrief_time,
+          s.is_bar_raiser
+        FROM interview_slots s
+        JOIN pods p ON s.pod_id = p.id
+        WHERE s.interviewer_alias = ? 
+        AND s.status = 'filled'
+        AND (
+          (p.interview_date = ? AND NOT s.is_bar_raiser)
+          OR (p.debrief_date = ? OR (p.debrief_date IS NULL AND p.interview_date = ?))
+        )
+      `;
+      
+      db.all(conflictQuery, [
+        interviewer.email, 
+        slotData.interview_date,
+        slotData.debrief_date || slotData.interview_date,
+        slotData.debrief_date || slotData.interview_date
+      ], (err, conflicts) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Check if there are actual time conflicts
+        if (conflicts && conflicts.length > 0) {
+          const conflictDetails = conflicts.map(c => 
+            `${c.location}-${c.pod_number} on ${c.interview_date} (${c.time_slot})`
+          ).join(', ');
           
-          // Return pod and slot details for calendar invite
-          res.json({ 
-            message: 'Signed up successfully',
-            pod: {
-              id: slotData.pod_id,
-              pod_number: slotData.pod_number,
-              job_type: slotData.job_type,
-              level: slotData.level,
-              location: slotData.location,
-              interview_date: slotData.interview_date,
-              time_slot: slotData.time_slot,
-              time_zone: slotData.time_zone,
-              debrief_date: slotData.debrief_date,
-              debrief_time: slotData.debrief_time,
-              business_poc: slotData.business_poc
-            },
-            slot: {
-              id: slotData.id,
-              slot_number: slotData.slot_number,
-              focus_area: slotData.focus_area,
-              leadership_principle: slotData.leadership_principle
-            }
+          return res.status(409).json({ 
+            error: 'Time conflict detected',
+            message: `You are already signed up for: ${conflictDetails}. You cannot sign up for overlapping time slots.`,
+            conflicts: conflicts
           });
-        });
+        }
+        
+        // No conflicts, proceed with signup
+        db.run(`UPDATE interview_slots SET interviewer_name = ?, interviewer_alias = ?, status = 'filled' WHERE id = ?`,
+          [interviewer.name, interviewer.email, id],
+          function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            // Return pod and slot details for calendar invite
+            res.json({ 
+              message: 'Signed up successfully',
+              pod: {
+                id: slotData.pod_id,
+                pod_number: slotData.pod_number,
+                job_type: slotData.job_type,
+                level: slotData.level,
+                location: slotData.location,
+                interview_date: slotData.interview_date,
+                time_slot: slotData.time_slot,
+                time_zone: slotData.time_zone,
+                debrief_date: slotData.debrief_date,
+                debrief_time: slotData.debrief_time,
+                business_poc: slotData.business_poc
+              },
+              slot: {
+                id: slotData.id,
+                slot_number: slotData.slot_number,
+                focus_area: slotData.focus_area,
+                leadership_principle: slotData.leadership_principle
+              }
+            });
+          });
+      });
     });
   });
 });
@@ -605,6 +643,112 @@ app.post('/api/admin/slots/:id/remove', verifyToken, (req, res) => {
       res.json({ message: 'Interviewer removed successfully' });
     }
   );
+});
+
+// Admin: Assign interviewer to slot
+app.post('/api/admin/slots/:id/assign', verifyToken, (req, res) => {
+  const user = req.user;
+  
+  if (!user.is_admin) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  
+  const { id } = req.params;
+  const { userId } = req.body;
+  
+  // Get user details
+  db.get('SELECT * FROM users WHERE id = ?', [userId], (err, interviewer) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!interviewer) return res.status(404).json({ error: 'User not found' });
+    
+    // Get the slot and pod information
+    db.get(`
+      SELECT 
+        s.*,
+        p.interview_date, p.time_slot, p.debrief_date, p.debrief_time, p.location, p.pod_number
+      FROM interview_slots s
+      JOIN pods p ON s.pod_id = p.id
+      WHERE s.id = ?
+    `, [id], (err, slotData) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!slotData) return res.status(404).json({ error: 'Slot not found' });
+      
+      // Check for time conflicts
+      const conflictQuery = `
+        SELECT 
+          p.pod_number, p.location, p.interview_date, p.time_slot, p.debrief_date, p.debrief_time,
+          s.is_bar_raiser
+        FROM interview_slots s
+        JOIN pods p ON s.pod_id = p.id
+        WHERE s.interviewer_alias = ? 
+        AND s.status = 'filled'
+        AND (
+          (p.interview_date = ? AND NOT s.is_bar_raiser)
+          OR (p.debrief_date = ? OR (p.debrief_date IS NULL AND p.interview_date = ?))
+        )
+      `;
+      
+      db.all(conflictQuery, [
+        interviewer.email, 
+        slotData.interview_date,
+        slotData.debrief_date || slotData.interview_date,
+        slotData.debrief_date || slotData.interview_date
+      ], (err, conflicts) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Check if there are actual time conflicts
+        if (conflicts && conflicts.length > 0) {
+          const conflictDetails = conflicts.map(c => 
+            `${c.location}-${c.pod_number} on ${c.interview_date} (${c.time_slot})`
+          ).join(', ');
+          
+          return res.status(409).json({ 
+            error: `${interviewer.name} is already signed up for: ${conflictDetails}. Cannot assign to overlapping time slots.`
+          });
+        }
+        
+        // No conflicts, proceed with assignment
+        db.run(
+          `UPDATE interview_slots SET interviewer_name = ?, interviewer_alias = ?, status = 'filled' WHERE id = ?`,
+          [interviewer.name, interviewer.email, id],
+          function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: 'Interviewer assigned successfully' });
+          }
+        );
+      });
+    });
+  });
+});
+
+// Search users (for admin to assign interviewers)
+app.get('/api/users/search', verifyToken, (req, res) => {
+  const user = req.user;
+  
+  if (!user.is_admin) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  
+  const searchTerm = req.query.q || '';
+  
+  if (searchTerm.length < 2) {
+    return res.json([]);
+  }
+  
+  const query = `
+    SELECT id, name, email, job_family, level, is_manager, is_bar_raiser
+    FROM users
+    WHERE email LIKE ? OR name LIKE ? OR alias LIKE ?
+    ORDER BY name
+    LIMIT 20
+  `;
+  
+  const searchPattern = `%${searchTerm}%`;
+  
+  db.all(query, [searchPattern, searchPattern, searchPattern], (err, users) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(users);
+  });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
