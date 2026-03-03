@@ -461,7 +461,10 @@ async function openSlotEditor(rowIndex, slotIndex) {
   
   // Update modal content
   document.getElementById('slotEditorPodInfo').textContent = `${row.location}-${row.pod_number} (${row.job_type} ${row.level})`;
-  document.getElementById('slotEditorSlotInfo').textContent = slot.is_bar_raiser ? 'Bar Raiser (Slot 5)' : `Interviewer ${slot.slot_number}`;
+  const slotLabel = slot.is_bar_raiser ? 'Bar Raiser (Interviewer 5)' : 
+                    slot.slot_number === 1 ? 'Interviewer 1 (Hiring Manager)' : 
+                    `Interviewer ${slot.slot_number}`;
+  document.getElementById('slotEditorSlotInfo').textContent = slotLabel;
   
   // Show current interviewer
   if (slot.interviewer_alias) {
@@ -775,7 +778,7 @@ function handleExcelUpload(event) {
 function downloadExcelTemplate() {
   // Create a sample template with headers and example data
   const templateData = [
-    ['Pod Number', 'Job Type', 'Level', 'Location', 'Interview Date', 'Time Slot', 'Time Zone', 'Debrief Date', 'Debrief Time', 'Business POC', 'Slot 1', 'Slot 2', 'Slot 3', 'Slot 4', 'Slot 5 (BR)'],
+    ['Pod Number', 'Job Type', 'Level', 'Location', 'Interview Date', 'Time Slot', 'Time Zone', 'Debrief Date', 'Debrief Time', 'Business POC', 'Interviewer 1 (HM)', 'Interviewer 2', 'Interviewer 3', 'Interviewer 4', 'Interviewer 5 (BR)'],
     [1, 'DCEO', 'L3', 'IAD', '03/15/2026', '1pm-4pm', 'ET', '03/15/2026', '4:30pm-5pm', 'John/Jane', '', '', '', '', ''],
     [2, 'DCO', 'L4', 'PDX', '03/20/2026', '9am-12pm', 'PT', '03/20/2026', '1pm-1:30pm', 'Alice/Bob', '', '', '', '', ''],
     [3, 'ID', 'L3', 'DFW', '03/25/2026', '2pm-5pm', 'CT', '03/25/2026', '5:30pm-6pm', 'Charlie/Dana', '', '', '', '', '']
@@ -797,11 +800,11 @@ function downloadExcelTemplate() {
     { wch: 15 }, // Debrief Date
     { wch: 15 }, // Debrief Time
     { wch: 15 }, // Business POC
-    { wch: 12 }, // Slot 1
-    { wch: 12 }, // Slot 2
-    { wch: 12 }, // Slot 3
-    { wch: 12 }, // Slot 4
-    { wch: 14 }  // Slot 5 (BR)
+    { wch: 16 }, // Interviewer 1 (HM)
+    { wch: 12 }, // Interviewer 2
+    { wch: 12 }, // Interviewer 3
+    { wch: 12 }, // Interviewer 4
+    { wch: 16 }  // Interviewer 5 (BR)
   ];
   
   // Add a note/instruction sheet
@@ -821,13 +824,14 @@ function downloadExcelTemplate() {
     ['- Debrief Date: Format MM/DD/YYYY (defaults to Interview Date if empty)'],
     ['- Debrief Time: Format like "4:30pm-5pm"'],
     ['- Business POC: Name/Name format'],
-    ['- Slot 1-5: Leave empty for now (interviewers managed after pod creation)'],
+    ['- Interviewer 1-5: Leave empty for now (interviewers managed after pod creation)'],
     [''],
     ['Notes:'],
-    ['- L3 pods have 3 interviewer slots'],
-    ['- L4 pods have 4 interviewer slots + 1 Bar Raiser slot (Slot 5)'],
-    ['- Slot columns are for reference only - use the web interface to assign interviewers'],
-    ['- After uploading, click on slot cells in the spreadsheet to assign interviewers']
+    ['- Interviewer 1 is always the Hiring Manager slot'],
+    ['- L3 pods have 3 interviewers'],
+    ['- L4 pods have 4 interviewers + 1 Bar Raiser (Interviewer 5)'],
+    ['- Interviewer columns are for reference only - use the web interface to assign interviewers'],
+    ['- After uploading, click on interviewer cells in the spreadsheet to assign interviewers']
   ];
   
   const wsInstructions = XLSX.utils.aoa_to_sheet(instructionsData);
@@ -1262,7 +1266,11 @@ function renderPods() {
 function renderSlot(slot, showAll = false, pod = null) {
   const isFilled = slot.status === 'filled';
   const isBarRaiser = slot.is_bar_raiser || slot.required_job_family === 'Bar Raiser';
-  const cardClass = isFilled ? 'slot-card filled' : isBarRaiser ? 'slot-card open bar-raiser-slot' : 'slot-card open';
+  const isHiringManager = slot.slot_number === 1;
+  const cardClass = isFilled ? 'slot-card filled' : 
+                    isBarRaiser ? 'slot-card open bar-raiser-slot' : 
+                    isHiringManager ? 'slot-card open hiring-manager-slot' :
+                    'slot-card open';
   
   // Check if current user is eligible for this slot
   const isEligible = checkSlotEligibility(slot);
@@ -1279,7 +1287,7 @@ function renderSlot(slot, showAll = false, pod = null) {
   
   return `
     <div class="${cardClass}">
-      <div class="slot-header">${isBarRaiser ? '⭐ Bar Raiser (Debrief Only)' : `Interviewer ${slot.slot_number}`}</div>
+      <div class="slot-header">${isBarRaiser ? '⭐ Bar Raiser (Debrief Only)' : slot.slot_number === 1 ? '👔 Interviewer 1 (Hiring Manager)' : `Interviewer ${slot.slot_number}`}</div>
       <div class="slot-details">
         <div><strong>Competency:</strong> ${competency}</div>
         <div><strong>Required:</strong> ${slot.required_job_family} (${slot.required_level})</div>
