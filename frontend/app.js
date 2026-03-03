@@ -738,12 +738,14 @@ function renderSlot(slot, showAll = false, pod = null) {
   const isEligible = checkSlotEligibility(slot);
   
   // Check if current user is the one who signed up for this slot
-  const isCurrentUserSlot = isFilled && slot.interviewer_alias === currentUser.email;
+  const isCurrentUserSlot = isFilled && currentUser && slot.interviewer_alias === currentUser.email;
   
   // Combine focus area and leadership principle into competency
   const competency = isBarRaiser 
     ? slot.leadership_principle 
-    : `${slot.focus_area} / ${slot.leadership_principle}`;
+    : slot.focus_area === 'Any' 
+      ? slot.leadership_principle 
+      : `${slot.focus_area} / ${slot.leadership_principle}`;
   
   return `
     <div class="${cardClass}">
@@ -1155,115 +1157,140 @@ async function showMyInterviews() {
     
     if (myPods.length === 0) {
       calendar.innerHTML = '<div class="no-interviews"><p>You are not scheduled for any interviews yet.</p></div>';
-    } else {
-      // Group by date
-      const podsByDate = {};
-      myPods.forEach(pod => {
-        const interviewDate = pod.interview_date;
-        const debriefDate = pod.debrief_date || pod.interview_date;
-        
-        // Add to interview date
-        if (!podsByDate[interviewDate]) {
-          podsByDate[interviewDate] = { interviews: [], debriefs: [] };
-        }
-        podsByDate[interviewDate].interviews.push(pod);
-        
-        // Add to debrief date if different
-        if (debriefDate !== interviewDate) {
-          if (!podsByDate[debriefDate]) {
-            podsByDate[debriefDate] = { interviews: [], debriefs: [] };
-          }
-          podsByDate[debriefDate].debriefs.push(pod);
-        } else {
-          podsByDate[interviewDate].debriefs.push(pod);
-        }
-      });
-      
-      // Sort dates
-      const sortedDates = Object.keys(podsByDate).sort((a, b) => {
-        return parseDate(a) - parseDate(b);
-      });
-      
-      calendar.innerHTML = sortedDates.map(date => {
-        const dayData = podsByDate[date];
-        const dateObj = parseDate(date);
-        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-        
-        return `
-          <div class="calendar-day">
-            <div class="calendar-day-header">
-              <h3>${dayName}, ${date}</h3>
-            </div>
-            <div class="calendar-events">
-              ${dayData.interviews.length > 0 ? `
-                <div class="calendar-section">
-                  <h4>🎤 Interviews</h4>
-                  ${dayData.interviews.map(pod => {
-                    const locationCode = pod.location.split('-')[0].split(' ')[0].toUpperCase();
-                    const convertedTime = convertTimeToUserTimezone(pod.time_slot, pod.time_zone, currentUser.timezone);
-                    const timeDisplay = currentUser.timezone === pod.time_zone 
-                      ? `${pod.time_slot} ${pod.time_zone}`
-                      : `${convertedTime} ${currentUser.timezone} <span class="time-note">(${pod.time_slot} ${pod.time_zone})</span>`;
-                    
-                    const mySlot = pod.slots[0]; // User's slot
-                    const isBarRaiser = mySlot.is_bar_raiser;
-                    const competency = isBarRaiser 
-                      ? mySlot.leadership_principle 
-                      : `${mySlot.focus_area} / ${mySlot.leadership_principle}`;
-                    
-                    return `
-                      <div class="calendar-event ${isBarRaiser ? 'bar-raiser-event' : ''}">
-                        <div class="event-title">
-                          ${isBarRaiser ? '⭐ ' : ''}${locationCode}-${pod.pod_number} - ${pod.job_type} ${pod.level}
-                        </div>
-                        <div class="event-details">
-                          <div><strong>Time:</strong> ${timeDisplay}</div>
-                          <div><strong>Location:</strong> ${pod.location}</div>
-                          ${!isBarRaiser ? `<div><strong>Your Role:</strong> Interviewer ${mySlot.slot_number}</div>` : '<div><strong>Your Role:</strong> Bar Raiser (Debrief Only)</div>'}
-                          <div><strong>Competency:</strong> ${competency}</div>
-                          ${pod.business_poc ? `<div><strong>POC:</strong> ${pod.business_poc}</div>` : ''}
-                        </div>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              ` : ''}
-              
-              ${dayData.debriefs.length > 0 ? `
-                <div class="calendar-section">
-                  <h4>💬 Debriefs</h4>
-                  ${dayData.debriefs.map(pod => {
-                    const locationCode = pod.location.split('-')[0].split(' ')[0].toUpperCase();
-                    const debriefTime = pod.debrief_time || 'TBD';
-                    const convertedTime = debriefTime !== 'TBD' ? convertTimeToUserTimezone(debriefTime, pod.time_zone, currentUser.timezone) : 'TBD';
-                    const timeDisplay = debriefTime === 'TBD' ? 'TBD' : (currentUser.timezone === pod.time_zone 
-                      ? `${debriefTime} ${pod.time_zone}`
-                      : `${convertedTime} ${currentUser.timezone} <span class="time-note">(${debriefTime} ${pod.time_zone})</span>`);
-                    
-                    return `
-                      <div class="calendar-event debrief-event">
-                        <div class="event-title">
-                          ${locationCode}-${pod.pod_number} - ${pod.job_type} ${pod.level} Debrief
-                        </div>
-                        <div class="event-details">
-                          <div><strong>Time:</strong> ${timeDisplay}</div>
-                          <div><strong>Location:</strong> ${pod.location}</div>
-                          ${pod.business_poc ? `<div><strong>POC:</strong> ${pod.business_poc}</div>` : ''}
-                        </div>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              ` : ''}
-            </div>
-          </div>
-        `;
-      }).join('');
+      modal.style.display = 'block';
+      return;
     }
+    
+    // Group events by date
+    const eventsByDate = {};
+    myPods.forEach(pod => {
+      const interviewDate = pod.interview_date;
+      const debriefDate = pod.debrief_date || pod.interview_date;
+      
+      // Add interview
+      if (!eventsByDate[interviewDate]) {
+        eventsByDate[interviewDate] = [];
+      }
+      eventsByDate[interviewDate].push({
+        type: 'interview',
+        pod: pod,
+        slot: pod.slots[0]
+      });
+      
+      // Add debrief
+      if (!eventsByDate[debriefDate]) {
+        eventsByDate[debriefDate] = [];
+      }
+      eventsByDate[debriefDate].push({
+        type: 'debrief',
+        pod: pod
+      });
+    });
+    
+    // Get date range
+    const allDates = Object.keys(eventsByDate).map(d => parseDate(d));
+    const minDate = new Date(Math.min(...allDates));
+    const maxDate = new Date(Math.max(...allDates));
+    
+    // Generate calendar months
+    const months = [];
+    let currentMonth = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    const endMonth = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+    
+    while (currentMonth <= endMonth) {
+      months.push(new Date(currentMonth));
+      currentMonth.setMonth(currentMonth.getMonth() + 1);
+    }
+    
+    calendar.innerHTML = months.map(monthDate => renderCalendarMonth(monthDate, eventsByDate)).join('');
     
     modal.style.display = 'block';
   } catch (error) {
     console.error('Error loading my interviews:', error);
     alert('Failed to load your scheduled interviews');
   }
+}
+
+function renderCalendarMonth(monthDate, eventsByDate) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  
+  // Get first day of month and number of days
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const daysInMonth = lastDay.getDate();
+  const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday
+  
+  // Build calendar grid
+  let calendarHTML = `
+    <div class="calendar-month">
+      <div class="calendar-month-header">
+        <h3>${monthName}</h3>
+      </div>
+      <div class="calendar-grid">
+        <div class="calendar-weekday">Sun</div>
+        <div class="calendar-weekday">Mon</div>
+        <div class="calendar-weekday">Tue</div>
+        <div class="calendar-weekday">Wed</div>
+        <div class="calendar-weekday">Thu</div>
+        <div class="calendar-weekday">Fri</div>
+        <div class="calendar-weekday">Sat</div>
+  `;
+  
+  // Add empty cells for days before month starts
+  for (let i = 0; i < startingDayOfWeek; i++) {
+    calendarHTML += '<div class="calendar-cell empty"></div>';
+  }
+  
+  // Add days of month
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${month + 1}/${day}/${year}`;
+    const events = eventsByDate[dateStr] || [];
+    const hasEvents = events.length > 0;
+    const today = new Date();
+    const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
+    
+    calendarHTML += `
+      <div class="calendar-cell ${hasEvents ? 'has-events' : ''} ${isToday ? 'today' : ''}">
+        <div class="cell-date">${day}</div>
+        ${hasEvents ? `
+          <div class="cell-events">
+            ${events.map(event => {
+              if (event.type === 'interview') {
+                const locationCode = event.pod.location.split('-')[0].split(' ')[0].toUpperCase();
+                const isBarRaiser = event.slot.is_bar_raiser;
+                const convertedTime = convertTimeToUserTimezone(event.pod.time_slot, event.pod.time_zone, currentUser.timezone);
+                const timeStr = currentUser.timezone === event.pod.time_zone ? event.pod.time_slot : convertedTime;
+                
+                return `
+                  <div class="cell-event interview-event ${isBarRaiser ? 'bar-raiser-mini' : ''}" title="${locationCode}-${event.pod.pod_number} Interview at ${timeStr}">
+                    ${isBarRaiser ? '⭐' : '🎤'} ${timeStr.split('-')[0]} ${locationCode}-${event.pod.pod_number}
+                  </div>
+                `;
+              } else {
+                const locationCode = event.pod.location.split('-')[0].split(' ')[0].toUpperCase();
+                const debriefTime = event.pod.debrief_time || 'TBD';
+                const convertedTime = debriefTime !== 'TBD' ? convertTimeToUserTimezone(debriefTime, event.pod.time_zone, currentUser.timezone) : 'TBD';
+                const timeStr = debriefTime === 'TBD' ? 'TBD' : (currentUser.timezone === event.pod.time_zone ? debriefTime : convertedTime);
+                
+                return `
+                  <div class="cell-event debrief-event" title="${locationCode}-${event.pod.pod_number} Debrief at ${timeStr}">
+                    💬 ${timeStr !== 'TBD' ? timeStr.split('-')[0] : 'TBD'} ${locationCode}-${event.pod.pod_number}
+                  </div>
+                `;
+              }
+            }).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+  
+  calendarHTML += `
+      </div>
+    </div>
+  `;
+  
+  return calendarHTML;
 }

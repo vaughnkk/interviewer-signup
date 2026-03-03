@@ -152,7 +152,7 @@
           </button>
           <button id="viewAllBtn" class="btn" style="display: none;">View All Pods</button>
           <button id="myInterviewsBtn" class="btn btn-secondary">
-            <span class="icon">📅</span> Interviews I'm Scheduled For
+            <span class="icon">📅</span> My Scheduled Interviews
           </button>
         </div>
         <div class="controls-right">
@@ -321,9 +321,11 @@
 
   <!-- My Interviews Modal -->
   <div id="myInterviewsModal" class="modal">
-    <div class="modal-content modal-large">
-      <span class="close">&times;</span>
-      <h2>📅 My Scheduled Interviews</h2>
+    <div class="modal-content modal-fullscreen">
+      <div class="calendar-header">
+        <h2>📅 My Scheduled Interviews</h2>
+        <button class="close-calendar" onclick="document.getElementById('myInterviewsModal').style.display='none'">&times;</button>
+      </div>
       <div id="myInterviewsCalendar"></div>
     </div>
   </div>
