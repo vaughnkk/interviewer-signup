@@ -1288,8 +1288,49 @@ body {
   font-weight: 500;
 }
 
+.slot-clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.slot-clickable:hover {
+  background-color: #007bff !important;
+  color: white !important;
+  transform: scale(1.05);
+}
+
 .spreadsheet-table tr:hover .slot-cell {
   background-color: #e9ecef;
+}
+
+.interviewer-results {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.interviewer-result-item {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.interviewer-result-item:hover {
+  background-color: #f0f8ff;
+}
+
+.interviewer-result-item:last-child {
+  border-bottom: none;
+}
+
+.no-results {
+  padding: 12px;
+  text-align: center;
+  color: #999;
+  font-style: italic;
 }
 
 .spreadsheet-table th:nth-child(12),

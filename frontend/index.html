@@ -339,6 +339,33 @@
     </div>
   </div>
 
+  <!-- Slot Editor Modal -->
+  <div id="slotEditorModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeSlotEditor()">&times;</span>
+      <h2>Manage Interviewer</h2>
+      <div id="slotEditorContent">
+        <p><strong>Pod:</strong> <span id="slotEditorPodInfo"></span></p>
+        <p><strong>Slot:</strong> <span id="slotEditorSlotInfo"></span></p>
+        
+        <div class="form-group">
+          <label for="slotInterviewerSearch">Search for Interviewer (by email or alias):</label>
+          <input type="text" id="slotInterviewerSearch" placeholder="Type to search...">
+          <div id="slotInterviewerResults" class="interviewer-results"></div>
+        </div>
+        
+        <div id="slotCurrentInterviewer" style="margin-top: 20px;">
+          <p><strong>Current Interviewer:</strong> <span id="currentInterviewerName">None</span></p>
+          <button id="removeInterviewerBtn" class="btn btn-danger" onclick="removeSlotInterviewer()" style="display: none;">Remove Interviewer</button>
+        </div>
+        
+        <div style="margin-top: 20px;">
+          <button class="btn" onclick="closeSlotEditor()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

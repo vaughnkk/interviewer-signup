@@ -299,11 +299,11 @@ function renderSpreadsheet() {
       <td><input type="text" class="sheet-input" data-index="${index}" data-field="debrief_date" value="${row.debrief_date || ''}" placeholder="MM/DD/YYYY" tabindex="${index * 9 + 8}"></td>
       <td><input type="text" class="sheet-input" data-index="${index}" data-field="debrief_time" value="${row.debrief_time || ''}" placeholder="5pm-5:30pm" tabindex="${index * 9 + 9}"></td>
       <td><input type="text" class="sheet-input" data-index="${index}" data-field="business_poc" value="${row.business_poc}" placeholder="name/name" tabindex="${index * 9 + 10}"></td>
-      <td class="slot-cell">${getSlotDisplay(row, 0)}</td>
-      <td class="slot-cell">${getSlotDisplay(row, 1)}</td>
-      <td class="slot-cell">${getSlotDisplay(row, 2)}</td>
-      <td class="slot-cell">${getSlotDisplay(row, 3)}</td>
-      <td class="slot-cell">${getSlotDisplay(row, 4)}</td>
+      <td class="slot-cell slot-clickable" onclick="openSlotEditor(${index}, 0)" title="Click to manage interviewer">${getSlotDisplay(row, 0)}</td>
+      <td class="slot-cell slot-clickable" onclick="openSlotEditor(${index}, 1)" title="Click to manage interviewer">${getSlotDisplay(row, 1)}</td>
+      <td class="slot-cell slot-clickable" onclick="openSlotEditor(${index}, 2)" title="Click to manage interviewer">${getSlotDisplay(row, 2)}</td>
+      <td class="slot-cell slot-clickable" onclick="openSlotEditor(${index}, 3)" title="Click to manage interviewer">${getSlotDisplay(row, 3)}</td>
+      <td class="slot-cell slot-clickable" onclick="openSlotEditor(${index}, 4)" title="Click to manage interviewer">${getSlotDisplay(row, 4)}</td>
       <td>
         <button class="btn btn-small btn-danger" onclick="deleteSpreadsheetRow(${index})" title="Delete row" tabindex="${index * 9 + 11}">×</button>
       </td>
@@ -336,6 +336,178 @@ function handleSpreadsheetChange(e) {
 function deleteSpreadsheetRow(index) {
   spreadsheetRows.splice(index, 1);
   renderSpreadsheet();
+}
+
+let currentSlotEditorRow = null;
+let currentSlotEditorIndex = null;
+
+async function openSlotEditor(rowIndex, slotIndex) {
+  const row = spreadsheetRows[rowIndex];
+  
+  // Check if pod exists (has an ID)
+  if (!row.id) {
+    alert('Please save this pod first before managing interviewers.');
+    return;
+  }
+  
+  // Check if slot exists
+  if (!row.slots || slotIndex >= row.slots.length) {
+    alert('This slot does not exist for this pod.');
+    return;
+  }
+  
+  currentSlotEditorRow = rowIndex;
+  currentSlotEditorIndex = slotIndex;
+  
+  const slot = row.slots[slotIndex];
+  
+  // Update modal content
+  document.getElementById('slotEditorPodInfo').textContent = `${row.location}-${row.pod_number} (${row.job_type} ${row.level})`;
+  document.getElementById('slotEditorSlotInfo').textContent = slot.is_bar_raiser ? 'Bar Raiser (Slot 5)' : `Interviewer ${slot.slot_number}`;
+  
+  // Show current interviewer
+  if (slot.interviewer_alias) {
+    document.getElementById('currentInterviewerName').textContent = `${slot.interviewer_name} (${slot.interviewer_alias})`;
+    document.getElementById('removeInterviewerBtn').style.display = 'inline-block';
+  } else {
+    document.getElementById('currentInterviewerName').textContent = 'None (Open)';
+    document.getElementById('removeInterviewerBtn').style.display = 'none';
+  }
+  
+  // Clear search
+  document.getElementById('slotInterviewerSearch').value = '';
+  document.getElementById('slotInterviewerResults').innerHTML = '';
+  
+  // Show modal
+  document.getElementById('slotEditorModal').style.display = 'block';
+}
+
+function closeSlotEditor() {
+  document.getElementById('slotEditorModal').style.display = 'none';
+  currentSlotEditorRow = null;
+  currentSlotEditorIndex = null;
+}
+
+// Search for interviewers as user types
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('slotInterviewerSearch');
+  if (searchInput) {
+    searchInput.addEventListener('input', debounce(searchInterviewers, 300));
+  }
+});
+
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+async function searchInterviewers() {
+  const searchTerm = document.getElementById('slotInterviewerSearch').value.trim();
+  const resultsDiv = document.getElementById('slotInterviewerResults');
+  
+  if (searchTerm.length < 2) {
+    resultsDiv.innerHTML = '';
+    return;
+  }
+  
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/users/search?q=${encodeURIComponent(searchTerm)}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (response.ok) {
+      const users = await response.json();
+      
+      if (users.length === 0) {
+        resultsDiv.innerHTML = '<p class="no-results">No users found</p>';
+      } else {
+        resultsDiv.innerHTML = users.map(user => `
+          <div class="interviewer-result-item" onclick="assignInterviewer(${user.id}, '${user.name}', '${user.email}')">
+            <strong>${user.name}</strong> (${user.email})<br>
+            <small>${user.job_family} • Level ${user.level}</small>
+          </div>
+        `).join('');
+      }
+    }
+  } catch (error) {
+    console.error('Error searching interviewers:', error);
+  }
+}
+
+async function assignInterviewer(userId, userName, userEmail) {
+  const row = spreadsheetRows[currentSlotEditorRow];
+  const slot = row.slots[currentSlotEditorIndex];
+  
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/admin/slots/${slot.id}/assign`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ userId })
+    });
+    
+    if (response.ok) {
+      alert(`Successfully assigned ${userName} to this slot!`);
+      
+      // Reload the spreadsheet to show updated data
+      await loadPodsIntoSpreadsheet();
+      
+      closeSlotEditor();
+    } else {
+      const error = await response.json();
+      alert(`Failed to assign interviewer: ${error.error || 'Unknown error'}`);
+    }
+  } catch (error) {
+    console.error('Error assigning interviewer:', error);
+    alert('Failed to assign interviewer');
+  }
+}
+
+async function removeSlotInterviewer() {
+  if (!confirm('Are you sure you want to remove this interviewer from the slot?')) {
+    return;
+  }
+  
+  const row = spreadsheetRows[currentSlotEditorRow];
+  const slot = row.slots[currentSlotEditorIndex];
+  
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/admin/slots/${slot.id}/remove`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (response.ok) {
+      alert('Interviewer removed successfully!');
+      
+      // Reload the spreadsheet to show updated data
+      await loadPodsIntoSpreadsheet();
+      
+      closeSlotEditor();
+    } else {
+      const error = await response.json();
+      alert(`Failed to remove interviewer: ${error.error || 'Unknown error'}`);
+    }
+  } catch (error) {
+    console.error('Error removing interviewer:', error);
+    alert('Failed to remove interviewer');
+  }
 }
 
 function addMoreRows() {
@@ -473,10 +645,10 @@ function handleExcelUpload(event) {
 function downloadExcelTemplate() {
   // Create a sample template with headers and example data
   const templateData = [
-    ['Pod Number', 'Job Type', 'Level', 'Location', 'Interview Date', 'Time Slot', 'Time Zone', 'Debrief Date', 'Debrief Time', 'Business POC'],
-    [1, 'DCEO', 'L3', 'IAD', '03/15/2026', '1pm-4pm', 'ET', '03/15/2026', '4:30pm-5pm', 'John/Jane'],
-    [2, 'DCO', 'L4', 'PDX', '03/20/2026', '9am-12pm', 'PT', '03/20/2026', '1pm-1:30pm', 'Alice/Bob'],
-    [3, 'ID', 'L3', 'DFW', '03/25/2026', '2pm-5pm', 'CT', '03/25/2026', '5:30pm-6pm', 'Charlie/Dana']
+    ['Pod Number', 'Job Type', 'Level', 'Location', 'Interview Date', 'Time Slot', 'Time Zone', 'Debrief Date', 'Debrief Time', 'Business POC', 'Slot 1', 'Slot 2', 'Slot 3', 'Slot 4', 'Slot 5 (BR)'],
+    [1, 'DCEO', 'L3', 'IAD', '03/15/2026', '1pm-4pm', 'ET', '03/15/2026', '4:30pm-5pm', 'John/Jane', '', '', '', '', ''],
+    [2, 'DCO', 'L4', 'PDX', '03/20/2026', '9am-12pm', 'PT', '03/20/2026', '1pm-1:30pm', 'Alice/Bob', '', '', '', '', ''],
+    [3, 'ID', 'L3', 'DFW', '03/25/2026', '2pm-5pm', 'CT', '03/25/2026', '5:30pm-6pm', 'Charlie/Dana', '', '', '', '', '']
   ];
   
   // Create workbook and worksheet
@@ -494,9 +666,44 @@ function downloadExcelTemplate() {
     { wch: 12 }, // Time Zone
     { wch: 15 }, // Debrief Date
     { wch: 15 }, // Debrief Time
-    { wch: 15 }  // Business POC
+    { wch: 15 }, // Business POC
+    { wch: 12 }, // Slot 1
+    { wch: 12 }, // Slot 2
+    { wch: 12 }, // Slot 3
+    { wch: 12 }, // Slot 4
+    { wch: 14 }  // Slot 5 (BR)
   ];
   
+  // Add a note/instruction sheet
+  const instructionsData = [
+    ['Pod Upload Template - Instructions'],
+    [''],
+    ['Required Fields:'],
+    ['- Pod Number: Unique number for the pod'],
+    ['- Job Type: Must be DCEO, DCO, or ID'],
+    ['- Level: Must be L3 or L4'],
+    ['- Location: Airport code (IAD, PDX, DFW, etc.)'],
+    ['- Interview Date: Format MM/DD/YYYY'],
+    ['- Time Slot: Format like "1pm-4pm"'],
+    ['- Time Zone: Must be PT, ET, CT, or MT'],
+    [''],
+    ['Optional Fields:'],
+    ['- Debrief Date: Format MM/DD/YYYY (defaults to Interview Date if empty)'],
+    ['- Debrief Time: Format like "4:30pm-5pm"'],
+    ['- Business POC: Name/Name format'],
+    ['- Slot 1-5: Leave empty for now (interviewers managed after pod creation)'],
+    [''],
+    ['Notes:'],
+    ['- L3 pods have 3 interviewer slots'],
+    ['- L4 pods have 4 interviewer slots + 1 Bar Raiser slot (Slot 5)'],
+    ['- Slot columns are for reference only - use the web interface to assign interviewers'],
+    ['- After uploading, click on slot cells in the spreadsheet to assign interviewers']
+  ];
+  
+  const wsInstructions = XLSX.utils.aoa_to_sheet(instructionsData);
+  wsInstructions['!cols'] = [{ wch: 80 }];
+  
+  XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
   XLSX.utils.book_append_sheet(wb, ws, 'Pod Template');
   
   // Generate and download the file
@@ -1119,8 +1326,13 @@ async function handleDirectSignup(slotId) {
       }
       
       loadPods();
+    } else if (response.status === 409) {
+      // Conflict error
+      const error = await response.json();
+      alert(error.message || 'Time conflict: You are already signed up for another interview at this time.');
     } else {
-      alert('Failed to sign up');
+      const error = await response.json();
+      alert(error.error || 'Failed to sign up');
     }
   } catch (error) {
     console.error('Error signing up:', error);
