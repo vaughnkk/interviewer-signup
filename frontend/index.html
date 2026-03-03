@@ -152,6 +152,9 @@
             <span class="icon">↻</span> Refresh
           </button>
           <button id="viewAllBtn" class="btn" style="display: none;">View All Pods</button>
+          <button id="toggleViewBtn" class="btn btn-secondary" style="display: none;">
+            <span class="icon">📊</span> <span id="viewModeText">Table View</span>
+          </button>
           <button id="myInterviewsBtn" class="btn btn-secondary">
             <span class="icon">📅</span> My Scheduled Interviews
           </button>
@@ -197,6 +200,33 @@
       </div>
 
       <div id="podsContainer"></div>
+      
+      <!-- Table View Container -->
+      <div id="podsTableContainer" style="display: none;">
+        <div class="table-view-wrapper">
+          <table class="pods-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Pod #</th>
+                <th>Type</th>
+                <th>Level</th>
+                <th>Location</th>
+                <th>Time</th>
+                <th>Debrief</th>
+                <th>Slot 1</th>
+                <th>Slot 2</th>
+                <th>Slot 3</th>
+                <th>Slot 4</th>
+                <th>Slot 5 (BR)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="podsTableBody">
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -348,19 +378,24 @@
         <p><strong>Pod:</strong> <span id="slotEditorPodInfo"></span></p>
         <p><strong>Slot:</strong> <span id="slotEditorSlotInfo"></span></p>
         
+        <div id="slotCurrentInterviewer" style="margin-top: 20px; margin-bottom: 20px;">
+          <p><strong>Current Interviewer:</strong> <span id="currentInterviewerName">None</span></p>
+        </div>
+        
         <div class="form-group">
-          <label for="slotInterviewerSearch">Search for Interviewer (by email or alias):</label>
+          <label for="slotInterviewerSearch">Search for New Interviewer (by email or alias):</label>
           <input type="text" id="slotInterviewerSearch" placeholder="Type to search...">
           <div id="slotInterviewerResults" class="interviewer-results"></div>
         </div>
         
-        <div id="slotCurrentInterviewer" style="margin-top: 20px;">
-          <p><strong>Current Interviewer:</strong> <span id="currentInterviewerName">None</span></p>
-          <button id="removeInterviewerBtn" class="btn btn-danger" onclick="removeSlotInterviewer()" style="display: none;">Remove Interviewer</button>
+        <div id="selectedInterviewerPreview" style="display: none; margin-top: 15px; padding: 12px; background: #e8f5e9; border-radius: 4px; border-left: 4px solid #28a745;">
+          <p style="margin: 0;"><strong>Selected:</strong> <span id="selectedInterviewerInfo"></span></p>
         </div>
         
-        <div style="margin-top: 20px;">
-          <button class="btn" onclick="closeSlotEditor()">Close</button>
+        <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+          <button class="btn" onclick="closeSlotEditor()">Cancel</button>
+          <button id="removeInterviewerBtn" class="btn btn-danger" onclick="removeSlotInterviewer()" style="display: none;">Remove Current Interviewer</button>
+          <button id="saveInterviewerBtn" class="btn btn-primary" onclick="saveInterviewerAssignment()" style="display: none;">Save Changes</button>
         </div>
       </div>
     </div>

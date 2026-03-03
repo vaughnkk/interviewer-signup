@@ -1391,6 +1391,7 @@ body {
   margin: 0;
   font-size: 28px;
   font-weight: 700;
+  color: white;
 }
 
 .close-calendar {
@@ -1583,3 +1584,143 @@ body {
   }
 }
 
+
+
+/* Table View Styles */
+.table-view-wrapper {
+  overflow-x: auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  margin-top: 20px;
+}
+
+.pods-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.pods-table thead {
+  background: var(--secondary-color);
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.pods-table th {
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pods-table th:last-child {
+  border-right: none;
+}
+
+.pods-table tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+  transition: background-color 0.2s;
+}
+
+.pods-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.pods-table td {
+  padding: 10px 8px;
+  white-space: nowrap;
+  border-right: 1px solid #f0f0f0;
+}
+
+.pods-table td:last-child {
+  border-right: none;
+}
+
+.table-row-critical {
+  background-color: #fff5f5 !important;
+  border-left: 4px solid #dc3545;
+}
+
+.table-row-urgent {
+  background-color: #fffbf0 !important;
+  border-left: 4px solid #ffc107;
+}
+
+.slot-status {
+  text-align: center;
+  font-weight: 500;
+}
+
+.slot-status.filled {
+  color: #28a745;
+}
+
+.slot-status.open {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.badge-small {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badge-dceo {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.badge-dco {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.badge-id {
+  background: #e8f5e9;
+  color: #388e3c;
+}
+
+.badge-level {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.table-actions {
+  white-space: nowrap;
+}
+
+.btn-table {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 4px;
+  transition: all 0.2s;
+}
+
+.btn-table-edit {
+  background: #007bff;
+  color: white;
+}
+
+.btn-table-edit:hover {
+  background: #0056b3;
+}
+
+.btn-table-delete {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-table-delete:hover {
+  background: #c82333;
+}

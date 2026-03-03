@@ -114,6 +114,9 @@ function showMainApp() {
   // Show "View All Pods" button for everyone
   document.getElementById('viewAllBtn').style.display = 'inline-block';
   document.getElementById('viewAllBtn').addEventListener('click', toggleAllPodsView);
+  
+  // Add table view toggle listener
+  document.getElementById('toggleViewBtn').addEventListener('click', toggleTableView);
 }
 
 let isAllPodsView = false;
@@ -123,9 +126,102 @@ function toggleAllPodsView() {
   const btn = document.getElementById('viewAllBtn');
   btn.textContent = isAllPodsView ? 'View My Eligible Slots' : 'View All Pods';
   
+  // Show/hide table view toggle button
+  const toggleViewBtn = document.getElementById('toggleViewBtn');
+  if (isAllPodsView) {
+    toggleViewBtn.style.display = 'inline-block';
+  } else {
+    toggleViewBtn.style.display = 'none';
+    // Reset to card view when going back to eligible slots
+    if (isTableView) {
+      toggleTableView();
+    }
+  }
+  
   // Clear filters when switching views
   clearFilters();
   loadPods();
+}
+
+let isTableView = false;
+
+function toggleTableView() {
+  isTableView = !isTableView;
+  const viewModeText = document.getElementById('viewModeText');
+  const podsContainer = document.getElementById('podsContainer');
+  const podsTableContainer = document.getElementById('podsTableContainer');
+  
+  if (isTableView) {
+    viewModeText.textContent = 'Card View';
+    podsContainer.style.display = 'none';
+    podsTableContainer.style.display = 'block';
+    renderPodsTable();
+  } else {
+    viewModeText.textContent = 'Table View';
+    podsContainer.style.display = 'block';
+    podsTableContainer.style.display = 'none';
+  }
+}
+
+function renderPodsTable() {
+  const tbody = document.getElementById('podsTableBody');
+  
+  if (pods.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 40px;">No pods available</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = pods.map(pod => {
+    const slots = pod.slots || [];
+    const getSlotText = (index) => {
+      if (index >= slots.length) return '-';
+      const slot = slots[index];
+      return slot.interviewer_alias || 'Open';
+    };
+    
+    // Calculate urgency class
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const podDate = parseDate(pod.interview_date);
+    const daysDiff = Math.ceil((podDate - today) / (1000 * 60 * 60 * 24));
+    let rowClass = '';
+    if (daysDiff <= 3 && daysDiff >= 0) {
+      rowClass = 'table-row-critical';
+    } else if (daysDiff <= 7 && daysDiff >= 0) {
+      rowClass = 'table-row-urgent';
+    }
+    
+    const adminActions = currentUser.is_admin ? `
+      <button class="btn-table btn-table-edit" onclick='editPodFromTable(${JSON.stringify(pod).replace(/'/g, "&apos;")})'>Edit</button>
+      <button class="btn-table btn-table-delete" onclick="deletePodFromTable(${pod.id})">Delete</button>
+    ` : '';
+    
+    return `
+      <tr class="${rowClass}">
+        <td>${pod.interview_date}</td>
+        <td><strong>${pod.location}-${pod.pod_number}</strong></td>
+        <td><span class="badge-small badge-${pod.job_type.toLowerCase()}">${pod.job_type}</span></td>
+        <td><span class="badge-small badge-level">${pod.level}</span></td>
+        <td>${pod.location}</td>
+        <td>${pod.time_slot} ${pod.time_zone}</td>
+        <td>${pod.debrief_date || pod.interview_date} ${pod.debrief_time || '-'}</td>
+        <td class="slot-status ${slots[0]?.status === 'filled' ? 'filled' : 'open'}">${getSlotText(0)}</td>
+        <td class="slot-status ${slots[1]?.status === 'filled' ? 'filled' : 'open'}">${getSlotText(1)}</td>
+        <td class="slot-status ${slots[2]?.status === 'filled' ? 'filled' : 'open'}">${getSlotText(2)}</td>
+        <td class="slot-status ${slots[3]?.status === 'filled' ? 'filled' : 'open'}">${getSlotText(3)}</td>
+        <td class="slot-status ${slots[4]?.status === 'filled' ? 'filled' : 'open'}">${getSlotText(4)}</td>
+        <td class="table-actions">${adminActions}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function editPodFromTable(pod) {
+  showEditPodModal(pod);
+}
+
+function deletePodFromTable(podId) {
+  deletePod(podId);
 }
 
 function showAddPodModal() {
@@ -340,6 +436,7 @@ function deleteSpreadsheetRow(index) {
 
 let currentSlotEditorRow = null;
 let currentSlotEditorIndex = null;
+let selectedInterviewerForSlot = null;
 
 async function openSlotEditor(rowIndex, slotIndex) {
   const row = spreadsheetRows[rowIndex];
@@ -358,6 +455,7 @@ async function openSlotEditor(rowIndex, slotIndex) {
   
   currentSlotEditorRow = rowIndex;
   currentSlotEditorIndex = slotIndex;
+  selectedInterviewerForSlot = null;
   
   const slot = row.slots[slotIndex];
   
@@ -374,18 +472,20 @@ async function openSlotEditor(rowIndex, slotIndex) {
     document.getElementById('removeInterviewerBtn').style.display = 'none';
   }
   
-  // Clear search
+  // Clear search and selection
   document.getElementById('slotInterviewerSearch').value = '';
   document.getElementById('slotInterviewerResults').innerHTML = '';
+  document.getElementById('selectedInterviewerPreview').style.display = 'none';
+  document.getElementById('saveInterviewerBtn').style.display = 'none';
   
   // Show modal
   document.getElementById('slotEditorModal').style.display = 'block';
 }
-
 function closeSlotEditor() {
   document.getElementById('slotEditorModal').style.display = 'none';
   currentSlotEditorRow = null;
   currentSlotEditorIndex = null;
+  selectedInterviewerForSlot = null;
 }
 
 // Search for interviewers as user types
@@ -432,7 +532,7 @@ async function searchInterviewers() {
         resultsDiv.innerHTML = '<p class="no-results">No users found</p>';
       } else {
         resultsDiv.innerHTML = users.map(user => `
-          <div class="interviewer-result-item" onclick="assignInterviewer(${user.id}, '${user.name}', '${user.email}')">
+          <div class="interviewer-result-item" onclick="selectInterviewer(${user.id}, '${user.name.replace(/'/g, "\\'")}', '${user.email}', '${user.job_family}', '${user.level}')">
             <strong>${user.name}</strong> (${user.email})<br>
             <small>${user.job_family} • Level ${user.level}</small>
           </div>
@@ -444,9 +544,35 @@ async function searchInterviewers() {
   }
 }
 
-async function assignInterviewer(userId, userName, userEmail) {
+function selectInterviewer(userId, userName, userEmail, jobFamily, level) {
+  // Store the selected interviewer
+  selectedInterviewerForSlot = { userId, userName, userEmail, jobFamily, level };
+  
+  // Show the selection preview
+  document.getElementById('selectedInterviewerInfo').textContent = `${userName} (${userEmail}) - ${jobFamily} • Level ${level}`;
+  document.getElementById('selectedInterviewerPreview').style.display = 'block';
+  
+  // Show the save button
+  document.getElementById('saveInterviewerBtn').style.display = 'inline-block';
+  
+  // Clear the search results
+  document.getElementById('slotInterviewerResults').innerHTML = '';
+  document.getElementById('slotInterviewerSearch').value = '';
+}
+
+async function saveInterviewerAssignment() {
+  if (!selectedInterviewerForSlot) {
+    alert('Please select an interviewer first.');
+    return;
+  }
+  
   const row = spreadsheetRows[currentSlotEditorRow];
   const slot = row.slots[currentSlotEditorIndex];
+  
+  // Disable the save button while saving
+  const saveBtn = document.getElementById('saveInterviewerBtn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
   
   try {
     const token = localStorage.getItem('token');
@@ -456,11 +582,11 @@ async function assignInterviewer(userId, userName, userEmail) {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ userId })
+      body: JSON.stringify({ userId: selectedInterviewerForSlot.userId })
     });
     
     if (response.ok) {
-      alert(`Successfully assigned ${userName} to this slot!`);
+      alert(`Successfully assigned ${selectedInterviewerForSlot.userName} to this slot!`);
       
       // Reload the spreadsheet to show updated data
       await loadPodsIntoSpreadsheet();
@@ -469,10 +595,14 @@ async function assignInterviewer(userId, userName, userEmail) {
     } else {
       const error = await response.json();
       alert(`Failed to assign interviewer: ${error.error || 'Unknown error'}`);
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Changes';
     }
   } catch (error) {
     console.error('Error assigning interviewer:', error);
     alert('Failed to assign interviewer');
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save Changes';
   }
 }
 
@@ -1122,6 +1252,11 @@ function renderPods() {
   
   // Attach event listeners to buttons
   attachSlotEventListeners();
+  
+  // Also render table view if in table mode
+  if (isTableView) {
+    renderPodsTable();
+  }
 }
 
 function renderSlot(slot, showAll = false, pod = null) {
